@@ -1,7 +1,6 @@
 package com.example.dussehraphotoorganizer.ui;
 
 import android.content.DialogInterface;
-import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -20,11 +19,16 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.example.dussehraphotoorganizer.R;
+import com.example.dussehraphotoorganizer.location.LocationConfigManager;
 import com.example.dussehraphotoorganizer.model.PhotoItem;
+import com.example.dussehraphotoorganizer.organizer.LocationPhotoOrganizer;
 import com.example.dussehraphotoorganizer.organizer.PhotoOrganizer;
+import com.example.dussehraphotoorganizer.scanner.LocationPhotoScanner;
 import com.example.dussehraphotoorganizer.scanner.PhotoScanner;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,14 +37,27 @@ import java.util.concurrent.Executors;
 
 public class OrganizePhotosActivity extends AppCompatActivity {
 
+    public static final String EXTRA_MODE = "ORGANIZATION_MODE";
+    public static final String MODE_LOCATION = "MODE_LOCATION";
+    public static final String MODE_FESTIVAL = "MODE_FESTIVAL";
+
+    private ChipGroup chipGroupMode;
+    private Chip chipLocationMode;
+    private Chip chipFestivalMode;
+    private TextView tvModeTargetDirectory;
     private TextView tvFoundCount;
     private MaterialButton btnToggleSelectAll;
     private ProgressBar progressBar;
     private RecyclerView rvEligiblePhotos;
+    private MaterialButton btnAutoCopyAll;
     private MaterialButton btnConfirmCopy;
 
-    private PhotoScanner photoScanner;
-    private PhotoOrganizer photoOrganizer;
+    private String currentMode = MODE_LOCATION;
+    private PhotoScanner festivalScanner;
+    private PhotoOrganizer festivalOrganizer;
+    private LocationPhotoScanner locationScanner;
+    private LocationPhotoOrganizer locationOrganizer;
+
     private final List<PhotoItem> photoList = new ArrayList<>();
     private PhotoAdapter adapter;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -54,50 +71,116 @@ public class OrganizePhotosActivity extends AppCompatActivity {
         MaterialToolbar toolbar = findViewById(R.id.toolbarOrganize);
         toolbar.setNavigationOnClickListener(v -> finish());
 
+        chipGroupMode = findViewById(R.id.chipGroupMode);
+        chipLocationMode = findViewById(R.id.chipLocationMode);
+        chipFestivalMode = findViewById(R.id.chipFestivalMode);
+        tvModeTargetDirectory = findViewById(R.id.tvModeTargetDirectory);
         tvFoundCount = findViewById(R.id.tvFoundCount);
         btnToggleSelectAll = findViewById(R.id.btnToggleSelectAll);
         progressBar = findViewById(R.id.progressBar);
         rvEligiblePhotos = findViewById(R.id.rvEligiblePhotos);
+        btnAutoCopyAll = findViewById(R.id.btnAutoCopyAll);
         btnConfirmCopy = findViewById(R.id.btnConfirmCopy);
 
-        photoScanner = new PhotoScanner(this);
-        photoOrganizer = new PhotoOrganizer(this);
+        festivalScanner = new PhotoScanner(this);
+        festivalOrganizer = new PhotoOrganizer(this);
+        locationScanner = new LocationPhotoScanner(this);
+        locationOrganizer = new LocationPhotoOrganizer(this);
 
         rvEligiblePhotos.setLayoutManager(new LinearLayoutManager(this));
         adapter = new PhotoAdapter();
         rvEligiblePhotos.setAdapter(adapter);
 
+        if (getIntent().hasExtra(EXTRA_MODE)) {
+            currentMode = getIntent().getStringExtra(EXTRA_MODE);
+        } else if ("NEW_ONLY".equals(getIntent().getStringExtra("SCAN_MODE"))) {
+            currentMode = MODE_FESTIVAL;
+        }
+
+        if (MODE_FESTIVAL.equals(currentMode)) {
+            chipFestivalMode.setChecked(true);
+        } else {
+            chipLocationMode.setChecked(true);
+        }
+
+        chipGroupMode.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            if (checkedIds.contains(R.id.chipFestivalMode)) {
+                currentMode = MODE_FESTIVAL;
+            } else {
+                currentMode = MODE_LOCATION;
+            }
+            updateModeUi();
+            startScanning();
+        });
+
         btnToggleSelectAll.setOnClickListener(v -> toggleSelectAll());
         btnConfirmCopy.setOnClickListener(v -> showCopyConfirmationDialog());
+        btnAutoCopyAll.setOnClickListener(v -> executeAutoCopyAll());
 
+        updateModeUi();
         startScanning();
+    }
+
+    private void updateModeUi() {
+        if (MODE_FESTIVAL.equals(currentMode)) {
+            tvModeTargetDirectory.setText("Target: Pictures/Dussehra_2026/ (11 Goddess Alankaram subfolders)");
+        } else {
+            tvModeTargetDirectory.setText("Target: Pictures/Location_Organized/ (Home, Yeendda_Durga_Devi_Temple, Carshed_Bobleam, YYYY-MM-DD)");
+        }
     }
 
     private void startScanning() {
         progressBar.setVisibility(View.VISIBLE);
         tvFoundCount.setText(getString(R.string.scanning_camera_photos));
+        btnConfirmCopy.setEnabled(false);
+        btnAutoCopyAll.setEnabled(false);
 
         executor.execute(() -> {
-            PhotoScanner.ScanResult result = photoScanner.scanCameraPhotos((scanned, matching) -> {
-                runOnUiThread(() -> tvFoundCount.setText("Scanning camera... " + matching + " matching photos found"));
-            });
+            if (MODE_FESTIVAL.equals(currentMode)) {
+                PhotoScanner.ScanResult result = festivalScanner.scanCameraPhotos((scanned, matching) -> {
+                    runOnUiThread(() -> tvFoundCount.setText("Scanning camera... " + matching + " festival photos found"));
+                });
 
-            runOnUiThread(() -> {
-                progressBar.setVisibility(View.GONE);
-                photoList.clear();
-                photoList.addAll(result.eligiblePhotos);
-                adapter.notifyDataSetChanged();
+                runOnUiThread(() -> {
+                    progressBar.setVisibility(View.GONE);
+                    photoList.clear();
+                    photoList.addAll(result.eligiblePhotos);
+                    adapter.notifyDataSetChanged();
 
-                tvFoundCount.setText(String.format("Found: %d eligible camera photos (Skipped %d non-matching / duplicates)",
-                        result.eligiblePhotos.size(), result.skippedCount));
+                    tvFoundCount.setText(String.format("Found: %d eligible festival camera photos (Skipped %d non-matching / duplicates)",
+                            result.eligiblePhotos.size(), result.skippedCount));
 
-                if (photoList.isEmpty()) {
-                    btnConfirmCopy.setEnabled(false);
-                    Toast.makeText(OrganizePhotosActivity.this, "No eligible camera photos found for the 2026 festival dates.", Toast.LENGTH_LONG).show();
-                } else {
-                    btnConfirmCopy.setEnabled(true);
-                }
-            });
+                    boolean hasItems = !photoList.isEmpty();
+                    btnConfirmCopy.setEnabled(hasItems);
+                    btnAutoCopyAll.setEnabled(hasItems);
+
+                    if (!hasItems) {
+                        Toast.makeText(OrganizePhotosActivity.this, "No eligible festival camera photos found.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            } else {
+                LocationPhotoScanner.LocationScanResult result = locationScanner.scanCameraPhotos((scanned, matching) -> {
+                    runOnUiThread(() -> tvFoundCount.setText("Scanning camera... " + matching + " eligible photos"));
+                });
+
+                runOnUiThread(() -> {
+                    progressBar.setVisibility(View.GONE);
+                    photoList.clear();
+                    photoList.addAll(result.eligiblePhotos);
+                    adapter.notifyDataSetChanged();
+
+                    tvFoundCount.setText(String.format("Found: %d eligible photos (Skipped %d duplicates / non-camera)",
+                            result.eligiblePhotos.size(), result.skippedCount));
+
+                    boolean hasItems = !photoList.isEmpty();
+                    btnConfirmCopy.setEnabled(hasItems);
+                    btnAutoCopyAll.setEnabled(hasItems);
+
+                    if (!hasItems) {
+                        Toast.makeText(OrganizePhotosActivity.this, "No new camera photos found to organize.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
         });
     }
 
@@ -125,7 +208,10 @@ public class OrganizePhotosActivity extends AppCompatActivity {
             return;
         }
 
-        String msg = getString(R.string.dialog_confirm_message, count);
+        String targetPath = MODE_FESTIVAL.equals(currentMode) ? "Pictures/Dussehra_2026/" : "Pictures/Location_Organized/";
+        String msg = String.format("Selected %d camera photos will be safely copied into %s subfolders.\n\nOriginal camera photos remain untouched.",
+                count, targetPath);
+
         new AlertDialog.Builder(this)
                 .setTitle(R.string.dialog_confirm_title)
                 .setMessage(msg)
@@ -134,23 +220,52 @@ public class OrganizePhotosActivity extends AppCompatActivity {
                 .show();
     }
 
+    private void executeAutoCopyAll() {
+        for (PhotoItem item : photoList) {
+            item.setSelected(true);
+        }
+        adapter.notifyDataSetChanged();
+        executePhotoCopy();
+    }
+
     private void executePhotoCopy() {
         progressBar.setVisibility(View.VISIBLE);
         btnConfirmCopy.setEnabled(false);
+        btnAutoCopyAll.setEnabled(false);
 
         executor.execute(() -> {
-            PhotoOrganizer.CopyResult result = photoOrganizer.copyPhotosToFestivalFolders(photoList, (current, total, name) -> {
-                runOnUiThread(() -> tvFoundCount.setText(String.format("Copying (%d/%d): %s", current, total, name)));
-            });
+            int copied;
+            int skipped;
+            int failed;
+            String root;
+
+            if (MODE_FESTIVAL.equals(currentMode)) {
+                root = "Pictures/Dussehra_2026/";
+                PhotoOrganizer.CopyResult result = festivalOrganizer.copyPhotosToFestivalFolders(photoList, (current, total, name) -> {
+                    runOnUiThread(() -> tvFoundCount.setText(String.format("Copying (%d/%d): %s", current, total, name)));
+                });
+                copied = result.copiedCount;
+                skipped = result.skippedCount;
+                failed = result.failedCount;
+            } else {
+                root = "Pictures/Location_Organized/";
+                LocationPhotoOrganizer.CopyResult result = locationOrganizer.copyPhotosToLocationFolders(photoList, (current, total, name, folder) -> {
+                    runOnUiThread(() -> tvFoundCount.setText(String.format("Copying (%d/%d) to %s: %s", current, total, folder, name)));
+                });
+                copied = result.copiedCount;
+                skipped = result.skippedCount;
+                failed = result.failedCount;
+            }
 
             runOnUiThread(() -> {
                 progressBar.setVisibility(View.GONE);
                 btnConfirmCopy.setEnabled(true);
+                btnAutoCopyAll.setEnabled(true);
 
                 new AlertDialog.Builder(OrganizePhotosActivity.this)
                         .setTitle("Organization Complete")
-                        .setMessage(String.format("Result:\n• Copied: %d\n• Skipped: %d\n• Failed: %d\n\nAll photos are saved in Pictures/Dussehra_2026/\nOriginal camera photos remain untouched.",
-                                result.copiedCount, result.skippedCount, result.failedCount))
+                        .setMessage(String.format("Result:\n• Copied: %d\n• Skipped: %d\n• Failed: %d\n\nAll photos are saved in %s\nOriginal camera photos remain untouched.",
+                                copied, skipped, failed, root))
                         .setPositiveButton("OK", (dialog, which) -> finish())
                         .show();
             });

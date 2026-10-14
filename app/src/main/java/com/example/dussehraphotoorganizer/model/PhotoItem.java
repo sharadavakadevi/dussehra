@@ -9,11 +9,15 @@ public class PhotoItem implements Serializable {
     private String filePath;
     private String uriString;
     private long captureTimestamp;
-    private String captureDateFormatted; // dd-MM-yyyy
-    private String destinationFolderName; // e.g. Sri_Annapurna_Devi (without date)
+    private String captureDateFormatted;
+    private String destinationFolderName;
+    private String rootDirectory; // "Dussehra_2026" or "Location_Organized"
     private boolean isCameraPhoto;
     private boolean isSelected;
-    private String statusMessage; // e.g. "Ready to copy", "Already organized", "Needs review"
+    private String statusMessage;
+    private Double latitude;
+    private Double longitude;
+    private String locationLabel;
 
     public PhotoItem() {
         this.isSelected = true;
@@ -27,6 +31,7 @@ public class PhotoItem implements Serializable {
         this.captureTimestamp = captureTimestamp;
         this.captureDateFormatted = captureDateFormatted;
         this.destinationFolderName = destinationFolderName;
+        this.rootDirectory = "Dussehra_2026";
         this.isCameraPhoto = isCameraPhoto;
         this.isSelected = true;
         this.statusMessage = "Eligible Camera Photo";
@@ -92,6 +97,14 @@ public class PhotoItem implements Serializable {
         this.destinationFolderName = destinationFolderName;
     }
 
+    public String getRootDirectory() {
+        return (rootDirectory != null && !rootDirectory.isEmpty()) ? rootDirectory : "Dussehra_2026";
+    }
+
+    public void setRootDirectory(String rootDirectory) {
+        this.rootDirectory = rootDirectory;
+    }
+
     public boolean isCameraPhoto() {
         return isCameraPhoto;
     }
@@ -114,5 +127,29 @@ public class PhotoItem implements Serializable {
 
     public void setStatusMessage(String statusMessage) {
         this.statusMessage = statusMessage;
+    }
+
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
+    }
+
+    public String getLocationLabel() {
+        return locationLabel;
+    }
+
+    public void setLocationLabel(String locationLabel) {
+        this.locationLabel = locationLabel;
     }
 }

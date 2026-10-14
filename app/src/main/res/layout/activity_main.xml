@@ -33,7 +33,116 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- Today's Devi Alankaram Card -->
+            <!-- Location-Based Photo Organization Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardLocationOrganizer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="3dp"
+                app:strokeColor="@color/primary_saffron"
+                app:strokeWidth="1.5dp"
+                app:cardBackgroundColor="@color/white"
+                android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="wrap_content"
+                            android:text="@string/location_dashboard_title"
+                            android:textSize="17sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/primary_saffron_dark" />
+
+                        <TextView
+                            android:id="@+id/tvAutoOrganizeBadge"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/auto_organize_badge"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/status_success"
+                            android:background="@color/cream_surface"
+                            android:paddingHorizontal="6dp"
+                            android:paddingVertical="2dp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/location_dashboard_subtitle"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_secondary"
+                        android:layout_marginTop="4dp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/location_storage_target"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/maroon_kumkum"
+                        android:layout_marginTop="6dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="12dp">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnOrganizeLocation"
+                            android:layout_width="0dp"
+                            android:layout_weight="1.6"
+                            android:layout_height="52dp"
+                            android:text="@string/btn_organize_location"
+                            android:textSize="13sp"
+                            app:cornerRadius="10dp"
+                            android:backgroundTint="@color/primary_saffron"
+                            android:textColor="@color/text_on_saffron"
+                            app:icon="@android:drawable/ic_menu_myplaces"
+                            app:iconGravity="textStart"
+                            android:layout_marginEnd="6dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnManageLocations"
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="52dp"
+                            android:text="Locations"
+                            android:textSize="12sp"
+                            app:cornerRadius="10dp"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:textColor="@color/primary_saffron_dark"
+                            app:strokeColor="@color/primary_saffron"
+                            android:layout_marginStart="6dp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvLastLocationResult"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Location Status: Ready to organize"
+                        android:textSize="11sp"
+                        android:textColor="@color/text_secondary"
+                        android:layout_marginTop="8dp" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Today's Devi Alankaram Card (Dussehra Festival) -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardTodayAlankaram"
                 android:layout_width="match_parent"
@@ -90,7 +199,7 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Large Action Buttons -->
+            <!-- Large Action Buttons for Festival Organization -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnOrganizeExisting"
                 android:layout_width="match_parent"

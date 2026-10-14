@@ -2,6 +2,7 @@ package com.example.dussehraphotoorganizer.ui;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -13,6 +14,7 @@ import com.example.dussehraphotoorganizer.R;
 import com.example.dussehraphotoorganizer.data.LocalHistoryRepository;
 import com.example.dussehraphotoorganizer.model.FestivalDateItem;
 import com.example.dussehraphotoorganizer.schedule.AlankaramSchedule;
+import com.example.dussehraphotoorganizer.service.CameraPhotoContentObserver;
 import com.example.dussehraphotoorganizer.util.PermissionHelper;
 import com.google.android.material.button.MaterialButton;
 
@@ -28,6 +30,13 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvTodayFolderTarget;
     private TextView tvLastResult;
 
+    // Location Organizer Views
+    private TextView tvLastLocationResult;
+    private TextView tvAutoOrganizeBadge;
+    private MaterialButton btnOrganizeLocation;
+    private MaterialButton btnManageLocations;
+
+    // Festival Organization Views
     private MaterialButton btnOrganizeExisting;
     private MaterialButton btnOrganizeNew;
     private MaterialButton btnFestivalSchedule;
@@ -36,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
 
     private AlankaramSchedule schedule;
     private LocalHistoryRepository historyRepository;
+    private CameraPhotoContentObserver cameraObserver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,6 +54,7 @@ public class MainActivity extends AppCompatActivity {
 
         schedule = new AlankaramSchedule(this);
         historyRepository = new LocalHistoryRepository(this);
+        cameraObserver = new CameraPhotoContentObserver(this);
 
         initViews();
         setupClickListeners();
@@ -54,6 +65,21 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         updateDashboardInfo();
+        try {
+            getContentResolver().registerContentObserver(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    true,
+                    cameraObserver
+            );
+        } catch (Exception ignored) {}
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        try {
+            getContentResolver().unregisterContentObserver(cameraObserver);
+        } catch (Exception ignored) {}
     }
 
     private void initViews() {
@@ -63,6 +89,11 @@ public class MainActivity extends AppCompatActivity {
         tvTodayFolderTarget = findViewById(R.id.tvTodayFolderTarget);
         tvLastResult = findViewById(R.id.tvLastResult);
 
+        tvLastLocationResult = findViewById(R.id.tvLastLocationResult);
+        tvAutoOrganizeBadge = findViewById(R.id.tvAutoOrganizeBadge);
+        btnOrganizeLocation = findViewById(R.id.btnOrganizeLocation);
+        btnManageLocations = findViewById(R.id.btnManageLocations);
+
         btnOrganizeExisting = findViewById(R.id.btnOrganizeExisting);
         btnOrganizeNew = findViewById(R.id.btnOrganizeNew);
         btnFestivalSchedule = findViewById(R.id.btnFestivalSchedule);
@@ -71,6 +102,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateDashboardInfo() {
+        // Location Dashboard Update
+        String lastLocSummary = historyRepository.getLastLocationRunSummary();
+        if (lastLocSummary != null && !lastLocSummary.isEmpty()) {
+            tvLastLocationResult.setText("Last Location Result: " + lastLocSummary);
+        } else {
+            tvLastLocationResult.setText("Target: Home, Yeendda_Durga_Devi_Temple, Carshed_Bobleam, YYYY-MM-DD");
+        }
+
+        if (historyRepository.isAutoLocationOrganizeEnabled()) {
+            tvAutoOrganizeBadge.setText("Auto-Organize ON");
+            tvAutoOrganizeBadge.setVisibility(View.VISIBLE);
+        } else {
+            tvAutoOrganizeBadge.setText("Manual Only");
+            tvAutoOrganizeBadge.setVisibility(View.VISIBLE);
+        }
+
+        // Festival Dashboard Update
         SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy", Locale.US);
         String today = sdf.format(new Date());
         tvTodayDate.setText(today);
@@ -95,14 +143,27 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupClickListeners() {
+        btnOrganizeLocation.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, OrganizePhotosActivity.class);
+            intent.putExtra(OrganizePhotosActivity.EXTRA_MODE, OrganizePhotosActivity.MODE_LOCATION);
+            startActivity(intent);
+        });
+
+        btnManageLocations.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, ManageLocationsActivity.class);
+            startActivity(intent);
+        });
+
         btnOrganizeExisting.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, OrganizePhotosActivity.class);
+            intent.putExtra(OrganizePhotosActivity.EXTRA_MODE, OrganizePhotosActivity.MODE_FESTIVAL);
             startActivity(intent);
         });
 
         btnOrganizeNew.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, OrganizePhotosActivity.class);
             intent.putExtra("SCAN_MODE", "NEW_ONLY");
+            intent.putExtra(OrganizePhotosActivity.EXTRA_MODE, OrganizePhotosActivity.MODE_FESTIVAL);
             startActivity(intent);
         });
 

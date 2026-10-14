@@ -8,14 +8,24 @@ import java.util.Set;
 
 /**
  * LocalHistoryRepository stores processed media records to guarantee zero duplicate copies
- * across repeated scans, as well as configuration preferences.
+ * across repeated scans, as well as configuration preferences for both Festival and Location modes.
  */
 public class LocalHistoryRepository {
 
     private static final String PREF_NAME = "dussehra_history_prefs";
+    
+    // Festival processing history
     private static final String KEY_PROCESSED_MEDIA_IDS = "key_processed_media_ids";
     private static final String KEY_PROCESSED_FILE_SIGNATURES = "key_processed_file_signatures";
     private static final String KEY_LAST_RUN_SUMMARY = "key_last_run_summary";
+
+    // Location processing history
+    private static final String KEY_LOC_PROCESSED_MEDIA_IDS = "key_loc_processed_media_ids";
+    private static final String KEY_LOC_PROCESSED_FILE_SIGNATURES = "key_loc_processed_file_signatures";
+    private static final String KEY_LAST_LOC_RUN_SUMMARY = "key_last_loc_run_summary";
+    private static final String KEY_AUTO_LOCATION_ORGANIZE = "key_auto_location_organize";
+
+    // General preferences
     private static final String KEY_INCLUDE_VIDEOS = "key_include_videos";
     private static final String KEY_AUTO_ORGANIZE = "key_auto_organize";
     private static final String KEY_CUSTOM_CAMERA_PATH = "key_custom_camera_path";
@@ -26,6 +36,9 @@ public class LocalHistoryRepository {
         this.prefs = context.getApplicationContext().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
     }
 
+    // ==========================================
+    // Festival Processing
+    // ==========================================
     public boolean isPhotoAlreadyProcessed(long mediaId, String fileName, long size) {
         Set<String> idSet = prefs.getStringSet(KEY_PROCESSED_MEDIA_IDS, new HashSet<>());
         if (idSet.contains(String.valueOf(mediaId))) {
@@ -57,6 +70,51 @@ public class LocalHistoryRepository {
         return prefs.getString(KEY_LAST_RUN_SUMMARY, null);
     }
 
+    // ==========================================
+    // Location Processing
+    // ==========================================
+    public boolean isPhotoProcessedForLocation(long mediaId, String fileName, long size) {
+        Set<String> idSet = prefs.getStringSet(KEY_LOC_PROCESSED_MEDIA_IDS, new HashSet<>());
+        if (idSet.contains(String.valueOf(mediaId))) {
+            return true;
+        }
+        Set<String> sigSet = prefs.getStringSet(KEY_LOC_PROCESSED_FILE_SIGNATURES, new HashSet<>());
+        String signature = fileName + "_" + size;
+        return sigSet.contains(signature);
+    }
+
+    public synchronized void recordProcessedPhotoForLocation(long mediaId, String fileName, long size) {
+        Set<String> idSet = new HashSet<>(prefs.getStringSet(KEY_LOC_PROCESSED_MEDIA_IDS, new HashSet<>()));
+        idSet.add(String.valueOf(mediaId));
+
+        Set<String> sigSet = new HashSet<>(prefs.getStringSet(KEY_LOC_PROCESSED_FILE_SIGNATURES, new HashSet<>()));
+        sigSet.add(fileName + "_" + size);
+
+        prefs.edit()
+                .putStringSet(KEY_LOC_PROCESSED_MEDIA_IDS, idSet)
+                .putStringSet(KEY_LOC_PROCESSED_FILE_SIGNATURES, sigSet)
+                .apply();
+    }
+
+    public void setLastLocationRunSummary(String summary) {
+        prefs.edit().putString(KEY_LAST_LOC_RUN_SUMMARY, summary).apply();
+    }
+
+    public String getLastLocationRunSummary() {
+        return prefs.getString(KEY_LAST_LOC_RUN_SUMMARY, null);
+    }
+
+    public boolean isAutoLocationOrganizeEnabled() {
+        return prefs.getBoolean(KEY_AUTO_LOCATION_ORGANIZE, true); // Enabled by default for automatic operation
+    }
+
+    public void setAutoLocationOrganizeEnabled(boolean enabled) {
+        prefs.edit().putBoolean(KEY_AUTO_LOCATION_ORGANIZE, enabled).apply();
+    }
+
+    // ==========================================
+    // Shared Preferences
+    // ==========================================
     public boolean isIncludeVideos() {
         return prefs.getBoolean(KEY_INCLUDE_VIDEOS, false);
     }

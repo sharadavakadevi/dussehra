@@ -20,7 +20,9 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.example.dussehraphotoorganizer.R;
+import com.example.dussehraphotoorganizer.location.LocationConfigManager;
 import com.example.dussehraphotoorganizer.model.FestivalDateItem;
+import com.example.dussehraphotoorganizer.model.LocationConfigItem;
 import com.example.dussehraphotoorganizer.schedule.AlankaramSchedule;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.chip.Chip;
@@ -37,9 +39,11 @@ public class GalleryActivity extends AppCompatActivity {
     private TextView tvGalleryEmpty;
 
     private AlankaramSchedule schedule;
+    private LocationConfigManager locationConfigManager;
     private final List<GalleryItem> currentPhotos = new ArrayList<>();
     private GalleryAdapter adapter;
     private String selectedFolder = null; // null means "All Folders"
+    private String selectedRoot = null;   // null, "Dussehra_2026", or "Location_Organized"
 
     public static class GalleryItem {
         public final Uri uri;
@@ -66,6 +70,7 @@ public class GalleryActivity extends AppCompatActivity {
         tvGalleryEmpty = findViewById(R.id.tvGalleryEmpty);
 
         schedule = new AlankaramSchedule(this);
+        locationConfigManager = new LocationConfigManager(this);
 
         if (getIntent().hasExtra("FILTER_FOLDER")) {
             selectedFolder = getIntent().getStringExtra("FILTER_FOLDER");
@@ -80,25 +85,46 @@ public class GalleryActivity extends AppCompatActivity {
     }
 
     private void setupFolderChips() {
+        chipGroupFolders.removeAllViews();
+
         Chip allChip = new Chip(this);
         allChip.setText("All Folders");
         allChip.setCheckable(true);
         allChip.setChecked(selectedFolder == null);
         allChip.setOnClickListener(v -> {
             selectedFolder = null;
+            selectedRoot = null;
             loadPhotos();
         });
         chipGroupFolders.addView(allChip);
 
+        // Location Folders
+        for (LocationConfigItem loc : locationConfigManager.getRegisteredLocations()) {
+            Chip chip = new Chip(this);
+            chip.setText("📍 " + loc.getFolderName());
+            chip.setCheckable(true);
+            if (loc.getFolderName().equals(selectedFolder)) {
+                chip.setChecked(true);
+            }
+            chip.setOnClickListener(v -> {
+                selectedFolder = loc.getFolderName();
+                selectedRoot = LocationConfigManager.ROOT_FOLDER_NAME;
+                loadPhotos();
+            });
+            chipGroupFolders.addView(chip);
+        }
+
+        // Dussehra Festival Folders
         for (FestivalDateItem item : schedule.getSchedule()) {
             Chip chip = new Chip(this);
-            chip.setText(item.getFolderName());
+            chip.setText("🌸 " + item.getFolderName());
             chip.setCheckable(true);
             if (item.getFolderName().equals(selectedFolder)) {
                 chip.setChecked(true);
             }
             chip.setOnClickListener(v -> {
                 selectedFolder = item.getFolderName();
+                selectedRoot = AlankaramSchedule.MAIN_FOLDER_NAME;
                 loadPhotos();
             });
             chipGroupFolders.addView(chip);
@@ -109,14 +135,23 @@ public class GalleryActivity extends AppCompatActivity {
         currentPhotos.clear();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            String selection = MediaStore.Images.Media.RELATIVE_PATH + " LIKE ?";
-            String folderQuery = Environment.DIRECTORY_PICTURES + "/" + AlankaramSchedule.MAIN_FOLDER_NAME + "/";
-            if (selectedFolder != null) {
-                folderQuery += selectedFolder + "/%";
+            String selection;
+            String[] selectionArgs;
+
+            if (selectedFolder != null && selectedRoot != null) {
+                selection = MediaStore.Images.Media.RELATIVE_PATH + " LIKE ?";
+                String folderQuery = Environment.DIRECTORY_PICTURES + "/" + selectedRoot + "/" + selectedFolder + "/%";
+                selectionArgs = new String[]{folderQuery};
+            } else if (selectedFolder != null) {
+                selection = MediaStore.Images.Media.RELATIVE_PATH + " LIKE ?";
+                String folderQuery = "%/" + selectedFolder + "/%";
+                selectionArgs = new String[]{folderQuery};
             } else {
-                folderQuery += "%";
+                selection = MediaStore.Images.Media.RELATIVE_PATH + " LIKE ? OR " + MediaStore.Images.Media.RELATIVE_PATH + " LIKE ?";
+                String rootLoc = Environment.DIRECTORY_PICTURES + "/" + LocationConfigManager.ROOT_FOLDER_NAME + "/%";
+                String rootFest = Environment.DIRECTORY_PICTURES + "/" + AlankaramSchedule.MAIN_FOLDER_NAME + "/%";
+                selectionArgs = new String[]{rootLoc, rootFest};
             }
-            String[] selectionArgs = new String[]{folderQuery};
 
             String[] projection = new String[]{
                     MediaStore.Images.Media._ID,
@@ -150,22 +185,8 @@ public class GalleryActivity extends AppCompatActivity {
         } else {
             // Legacy files scan
             File picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
-            File mainDir = new File(picturesDir, AlankaramSchedule.MAIN_FOLDER_NAME);
-            if (mainDir.exists() && mainDir.isDirectory()) {
-                File[] subdirs = mainDir.listFiles(File::isDirectory);
-                if (subdirs != null) {
-                    for (File sub : subdirs) {
-                        if (selectedFolder == null || sub.getName().equals(selectedFolder)) {
-                            File[] files = sub.listFiles((dir, name) -> name.toLowerCase().endsWith(".jpg") || name.toLowerCase().endsWith(".png"));
-                            if (files != null) {
-                                for (File f : files) {
-                                    currentPhotos.add(new GalleryItem(Uri.fromFile(f), sub.getName(), f.getName()));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            scanLegacyDirectory(new File(picturesDir, LocationConfigManager.ROOT_FOLDER_NAME));
+            scanLegacyDirectory(new File(picturesDir, AlankaramSchedule.MAIN_FOLDER_NAME));
         }
 
         if (currentPhotos.isEmpty()) {
@@ -175,6 +196,24 @@ public class GalleryActivity extends AppCompatActivity {
         }
 
         adapter.notifyDataSetChanged();
+    }
+
+    private void scanLegacyDirectory(File mainDir) {
+        if (mainDir.exists() && mainDir.isDirectory()) {
+            File[] subdirs = mainDir.listFiles(File::isDirectory);
+            if (subdirs != null) {
+                for (File sub : subdirs) {
+                    if (selectedFolder == null || sub.getName().equals(selectedFolder)) {
+                        File[] files = sub.listFiles((dir, name) -> name.toLowerCase().endsWith(".jpg") || name.toLowerCase().endsWith(".png"));
+                        if (files != null) {
+                            for (File f : files) {
+                                currentPhotos.add(new GalleryItem(Uri.fromFile(f), sub.getName(), f.getName()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private class GalleryAdapter extends RecyclerView.Adapter<GalleryViewHolder> {

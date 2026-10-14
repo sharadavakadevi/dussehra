@@ -27,6 +27,33 @@
         android:padding="16dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
+        <!-- Mode Toggle Chips -->
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chipGroupMode"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:singleSelection="true"
+            app:selectionRequired="true"
+            android:layout_marginBottom="8dp">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipLocationMode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/tab_location"
+                android:checkable="true"
+                android:checked="true"
+                app:chipBackgroundColor="@color/cream_surface" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipFestivalMode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/tab_festival"
+                android:checkable="true"
+                app:chipBackgroundColor="@color/cream_surface" />
+        </com.google.android.material.chip.ChipGroup>
+
         <!-- Safety & Filter Notice -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
@@ -35,15 +62,31 @@
             app:strokeColor="@color/primary_saffron_light"
             app:strokeWidth="1dp"
             app:cardBackgroundColor="@color/cream_surface"
-            android:layout_marginBottom="12dp">
+            android:layout_marginBottom="8dp">
 
-            <TextView
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:padding="10dp"
-                android:text="@string/camera_photos_only_notice"
-                android:textSize="11sp"
-                android:textColor="@color/text_secondary" />
+                android:orientation="vertical"
+                android:padding="10dp">
+
+                <TextView
+                    android:id="@+id/tvModeTargetDirectory"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Target: Pictures/Location_Organized/ (Home, Temple, Carshed, YYYY-MM-DD)"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/maroon_kumkum" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/camera_photos_only_notice"
+                    android:textSize="11sp"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginTop="2dp" />
+            </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <!-- Status Summary Bar -->
@@ -52,7 +95,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:layout_marginBottom="8dp">
+            android:layout_marginBottom="6dp">
 
             <TextView
                 android:id="@+id/tvFoundCount"
@@ -82,7 +125,7 @@
             android:layout_height="wrap_content"
             android:indeterminate="true"
             android:visibility="gone"
-            android:layout_marginBottom="8dp" />
+            android:layout_marginBottom="6dp" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvEligiblePhotos"
@@ -90,21 +133,43 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:clipToPadding="false"
-            android:paddingBottom="8dp" />
+            android:paddingBottom="6dp" />
 
-        <!-- Confirm Action Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnConfirmCopy"
+        <!-- Action Buttons -->
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:text="@string/confirm_copy_button"
-            android:textSize="15sp"
-            app:cornerRadius="12dp"
-            android:backgroundTint="@color/primary_saffron"
-            android:textColor="@color/text_on_saffron"
-            app:icon="@android:drawable/ic_menu_save"
-            app:iconGravity="textStart"
-            android:layout_marginTop="8dp" />
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="6dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAutoCopyAll"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="52dp"
+                android:text="Auto-Copy All"
+                android:textSize="13sp"
+                app:cornerRadius="10dp"
+                android:backgroundTint="@color/maroon_kumkum"
+                android:textColor="@color/text_on_maroon"
+                app:icon="@android:drawable/ic_popup_sync"
+                app:iconGravity="textStart"
+                android:layout_marginEnd="4dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnConfirmCopy"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="52dp"
+                android:text="Copy Selected"
+                android:textSize="13sp"
+                app:cornerRadius="10dp"
+                android:backgroundTint="@color/primary_saffron"
+                android:textColor="@color/text_on_saffron"
+                app:icon="@android:drawable/ic_menu_save"
+                app:iconGravity="textStart"
+                android:layout_marginStart="4dp" />
+        </LinearLayout>
 
     </LinearLayout>
 
