@@ -42,17 +42,16 @@ public class GalleryActivity extends AppCompatActivity {
     private LocationConfigManager locationConfigManager;
     private final List<GalleryItem> currentPhotos = new ArrayList<>();
     private GalleryAdapter adapter;
-    private String selectedFolder = null; // null means "All Folders"
-    private String selectedRoot = null;   // null, "Dussehra_2026", or "Location_Organized"
+    private String filterQueryPattern = null; // null means "All Folders"
 
     public static class GalleryItem {
         public final Uri uri;
-        public final String folderName;
+        public final String folderPath;
         public final String fileName;
 
-        public GalleryItem(Uri uri, String folderName, String fileName) {
+        public GalleryItem(Uri uri, String folderPath, String fileName) {
             this.uri = uri;
-            this.folderName = folderName;
+            this.folderPath = folderPath;
             this.fileName = fileName;
         }
     }
@@ -73,7 +72,10 @@ public class GalleryActivity extends AppCompatActivity {
         locationConfigManager = new LocationConfigManager(this);
 
         if (getIntent().hasExtra("FILTER_FOLDER")) {
-            selectedFolder = getIntent().getStringExtra("FILTER_FOLDER");
+            String filter = getIntent().getStringExtra("FILTER_FOLDER");
+            if (filter != null) {
+                filterQueryPattern = "%/" + filter + "/%";
+            }
         }
 
         rvGalleryGrid.setLayoutManager(new GridLayoutManager(this, 3));
@@ -90,41 +92,40 @@ public class GalleryActivity extends AppCompatActivity {
         Chip allChip = new Chip(this);
         allChip.setText("All Folders");
         allChip.setCheckable(true);
-        allChip.setChecked(selectedFolder == null);
+        allChip.setChecked(filterQueryPattern == null);
         allChip.setOnClickListener(v -> {
-            selectedFolder = null;
-            selectedRoot = null;
+            filterQueryPattern = null;
             loadPhotos();
         });
         chipGroupFolders.addView(allChip);
 
-        // Location Folders
+        // Location Filters (Matches location subfolders across all Devi folders)
         for (LocationConfigItem loc : locationConfigManager.getRegisteredLocations()) {
             Chip chip = new Chip(this);
             chip.setText("📍 " + loc.getFolderName());
             chip.setCheckable(true);
-            if (loc.getFolderName().equals(selectedFolder)) {
+            String pattern = "%/" + loc.getFolderName() + "/%";
+            if (pattern.equals(filterQueryPattern)) {
                 chip.setChecked(true);
             }
             chip.setOnClickListener(v -> {
-                selectedFolder = loc.getFolderName();
-                selectedRoot = LocationConfigManager.ROOT_FOLDER_NAME;
+                filterQueryPattern = pattern;
                 loadPhotos();
             });
             chipGroupFolders.addView(chip);
         }
 
-        // Dussehra Festival Folders
+        // Devi Alankaram Parent Folder Filters
         for (FestivalDateItem item : schedule.getSchedule()) {
             Chip chip = new Chip(this);
             chip.setText("🌸 " + item.getFolderName());
             chip.setCheckable(true);
-            if (item.getFolderName().equals(selectedFolder)) {
+            String pattern = "%/" + item.getFolderName() + "/%";
+            if (pattern.equals(filterQueryPattern)) {
                 chip.setChecked(true);
             }
             chip.setOnClickListener(v -> {
-                selectedFolder = item.getFolderName();
-                selectedRoot = AlankaramSchedule.MAIN_FOLDER_NAME;
+                filterQueryPattern = pattern;
                 loadPhotos();
             });
             chipGroupFolders.addView(chip);
@@ -135,22 +136,16 @@ public class GalleryActivity extends AppCompatActivity {
         currentPhotos.clear();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            String baseRoot = Environment.DIRECTORY_PICTURES + "/" + AlankaramSchedule.MAIN_FOLDER_NAME + "/";
             String selection;
             String[] selectionArgs;
 
-            if (selectedFolder != null && selectedRoot != null) {
-                selection = MediaStore.Images.Media.RELATIVE_PATH + " LIKE ?";
-                String folderQuery = Environment.DIRECTORY_PICTURES + "/" + selectedRoot + "/" + selectedFolder + "/%";
-                selectionArgs = new String[]{folderQuery};
-            } else if (selectedFolder != null) {
-                selection = MediaStore.Images.Media.RELATIVE_PATH + " LIKE ?";
-                String folderQuery = "%/" + selectedFolder + "/%";
-                selectionArgs = new String[]{folderQuery};
+            if (filterQueryPattern != null) {
+                selection = MediaStore.Images.Media.RELATIVE_PATH + " LIKE ? AND " + MediaStore.Images.Media.RELATIVE_PATH + " LIKE ?";
+                selectionArgs = new String[]{baseRoot + "%", filterQueryPattern};
             } else {
-                selection = MediaStore.Images.Media.RELATIVE_PATH + " LIKE ? OR " + MediaStore.Images.Media.RELATIVE_PATH + " LIKE ?";
-                String rootLoc = Environment.DIRECTORY_PICTURES + "/" + LocationConfigManager.ROOT_FOLDER_NAME + "/%";
-                String rootFest = Environment.DIRECTORY_PICTURES + "/" + AlankaramSchedule.MAIN_FOLDER_NAME + "/%";
-                selectionArgs = new String[]{rootLoc, rootFest};
+                selection = MediaStore.Images.Media.RELATIVE_PATH + " LIKE ?";
+                selectionArgs = new String[]{baseRoot + "%"};
             }
 
             String[] projection = new String[]{
@@ -183,10 +178,10 @@ public class GalleryActivity extends AppCompatActivity {
                 e.printStackTrace();
             }
         } else {
-            // Legacy files scan
+            // Legacy files scan under Pictures/Dussehra_2026/
             File picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
-            scanLegacyDirectory(new File(picturesDir, LocationConfigManager.ROOT_FOLDER_NAME));
-            scanLegacyDirectory(new File(picturesDir, AlankaramSchedule.MAIN_FOLDER_NAME));
+            File mainDir = new File(picturesDir, AlankaramSchedule.MAIN_FOLDER_NAME);
+            scanLegacyDirectoryRecursive(mainDir);
         }
 
         if (currentPhotos.isEmpty()) {
@@ -198,18 +193,21 @@ public class GalleryActivity extends AppCompatActivity {
         adapter.notifyDataSetChanged();
     }
 
-    private void scanLegacyDirectory(File mainDir) {
-        if (mainDir.exists() && mainDir.isDirectory()) {
-            File[] subdirs = mainDir.listFiles(File::isDirectory);
-            if (subdirs != null) {
-                for (File sub : subdirs) {
-                    if (selectedFolder == null || sub.getName().equals(selectedFolder)) {
-                        File[] files = sub.listFiles((dir, name) -> name.toLowerCase().endsWith(".jpg") || name.toLowerCase().endsWith(".png"));
-                        if (files != null) {
-                            for (File f : files) {
-                                currentPhotos.add(new GalleryItem(Uri.fromFile(f), sub.getName(), f.getName()));
-                            }
-                        }
+    private void scanLegacyDirectoryRecursive(File dir) {
+        if (dir == null || !dir.exists() || !dir.isDirectory()) return;
+
+        File[] files = dir.listFiles();
+        if (files == null) return;
+
+        for (File f : files) {
+            if (f.isDirectory()) {
+                scanLegacyDirectoryRecursive(f);
+            } else {
+                String nameLower = f.getName().toLowerCase();
+                if (nameLower.endsWith(".jpg") || nameLower.endsWith(".jpeg") || nameLower.endsWith(".png")) {
+                    String relPath = f.getParent() != null ? f.getParent() : "";
+                    if (filterQueryPattern == null || relPath.contains(filterQueryPattern.replace("%", ""))) {
+                        currentPhotos.add(new GalleryItem(Uri.fromFile(f), relPath, f.getName()));
                     }
                 }
             }
@@ -264,7 +262,7 @@ public class GalleryActivity extends AppCompatActivity {
 
         new AlertDialog.Builder(this)
                 .setTitle(item.fileName)
-                .setMessage("Folder: " + item.folderName)
+                .setMessage("Folder: " + item.folderPath)
                 .setView(previewImage)
                 .setPositiveButton("Close", null)
                 .show();

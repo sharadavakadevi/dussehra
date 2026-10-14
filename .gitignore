@@ -1,0 +1,17 @@
+# Node & Vite
+node_modules/
+dist/
+.env.local
+
+# Gradle & Android
+.gradle/
+build/
+app/build/
+*.iml
+.idea/
+local.properties
+.DS_Store
+
+# Temporary / Large generated binaries
+*.log
+dussehra-photo-organizer-updated.zip

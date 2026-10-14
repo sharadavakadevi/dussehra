@@ -19,7 +19,7 @@
     <string name="title_location_organizer">లొకేషన్ ఆర్గనైజర్ / Location Organizer</string>
     <string name="location_dashboard_title">లొకేషన్ ఆధారిత ఆర్గనైజర్ / Location-Based Organizer</string>
     <string name="location_dashboard_subtitle">Home, Yeendda Durga Devi Temple, Carshed Bobleam &amp; Date Folders</string>
-    <string name="location_storage_target">Root: Pictures/Location_Organized/</string>
+    <string name="location_storage_target">Root: Pictures/Dussehra_2026/[Devi_Alankaram]/</string>
     <string name="btn_organize_location">లొకేషన్ వారీగా అమర్చండి / Organize by Location</string>
     <string name="btn_manage_locations">లొకేషన్లు &amp; రేడియస్ సవరణ / Manage Locations</string>
     <string name="auto_organize_badge">Auto-Organize Active</string>
@@ -62,5 +62,5 @@
     <string name="pref_include_videos_desc">సాధారణంగా ఫోటోలు మాత్రమే కాపీ అవుతాయి. వీడియోలు కావాలంటే ఇది ఆన్ చేయండి.</string>
     <string name="pref_camera_path">కెమెరా ఫోల్డర్ / Camera Directory</string>
     <string name="storage_location_label">స్టోరేజ్ లొకేషన్: Pictures/Dussehra_2026/</string>
-    <string name="storage_location_organized_label">స్టోరేజ్ లొకేషన్: Pictures/Location_Organized/</string>
+    <string name="storage_location_organized_label">స్టోరేజ్ లొకేషన్: Pictures/Dussehra_2026/[Devi_Folder]/[Location_Or_Date]/</string>
 </resources>

@@ -10,16 +10,21 @@ import android.provider.MediaStore;
 import com.example.dussehraphotoorganizer.data.LocalHistoryRepository;
 import com.example.dussehraphotoorganizer.location.LocationConfigManager;
 import com.example.dussehraphotoorganizer.model.PhotoItem;
+import com.example.dussehraphotoorganizer.schedule.AlankaramSchedule;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * LocationPhotoScanner scans public MediaStore photos strictly from camera captures (DCIM/Camera),
- * reads unredacted EXIF GPS coordinates, checks against registered physical locations offline,
- * and falls back to ISO date folders (YYYY-MM-DD) for unmatched or GPS-missing photos.
+ * LocationPhotoScanner scans authentic camera photos (DCIM/Camera),
+ * extracts EXIF capture timestamps and unredacted GPS coordinates,
+ * and routes photos into Pictures/Dussehra_2026/[Devi_Folder]/[Location_Or_Date_Folder]/.
  * 
- * Never guesses capture date from file-modified date; photos without verified capture dates are skipped.
+ * Target Folders:
+ * - Pictures/Dussehra_2026/[Devi_Folder]/Home/
+ * - Pictures/Dussehra_2026/[Devi_Folder]/Yeendda_Durga_Devi_Temple/
+ * - Pictures/Dussehra_2026/[Devi_Folder]/Carshed_Bobleam/
+ * - Pictures/Dussehra_2026/[Devi_Folder]/YYYY-MM-DD/ (for no GPS, unmatched, or ambiguous GPS)
  */
 public class LocationPhotoScanner {
 
@@ -109,50 +114,28 @@ public class LocationPhotoScanner {
                     // 3. Extract Full EXIF Metadata (Date & GPS)
                     PhotoMetadataReader.PhotoFullMetadata meta = metadataReader.extractFullMetadata(contentUri, dateTaken);
 
-                    String destinationFolder;
-                    String statusMessage;
-                    String locationLabel;
-
-                    if (meta.hasGpsCoordinates()) {
-                        LocationConfigManager.MatchResult match = locationConfigManager.matchLocation(meta.latitude, meta.longitude);
-                        if (match.isMatched) {
-                            destinationFolder = match.matchedLocation.getFolderName();
-                            locationLabel = match.matchedLocation.getName();
-                            statusMessage = "📍 " + match.matchedLocation.getName() + " (" + Math.round(match.distanceMeters) + "m)";
-                        } else {
-                            // GPS coordinates present but do not match any registered location -> use ISO Date folder
-                            if (meta.hasValidCaptureDate()) {
-                                destinationFolder = meta.isoFormattedDate;
-                                locationLabel = "Date: " + meta.isoFormattedDate;
-                                statusMessage = "📅 Unmatched GPS -> Date: " + meta.isoFormattedDate;
-                            } else {
-                                // Missing capture date: skip and record for review
-                                PhotoItem unverified = new PhotoItem(id, displayName, path, contentUri, 0, "Unknown", null, true);
-                                unverified.setRootDirectory(LocationConfigManager.ROOT_FOLDER_NAME);
-                                unverified.setStatusMessage("Missing capture date (Skipped - Needs Review)");
-                                reviewNeededPhotos.add(unverified);
-                                skippedCount++;
-                                continue;
-                            }
-                        }
-                    } else {
-                        // GPS coordinates missing -> use ISO Date folder (YYYY-MM-DD)
-                        if (meta.hasValidCaptureDate()) {
-                            destinationFolder = meta.isoFormattedDate;
-                            locationLabel = "Date: " + meta.isoFormattedDate;
-                            statusMessage = "📅 No GPS -> Date: " + meta.isoFormattedDate;
-                        } else {
-                            // Missing capture date: skip and record for review
-                            PhotoItem unverified = new PhotoItem(id, displayName, path, contentUri, 0, "Unknown", null, true);
-                            unverified.setRootDirectory(LocationConfigManager.ROOT_FOLDER_NAME);
-                            unverified.setStatusMessage("Missing capture date (Skipped - Needs Review)");
-                            reviewNeededPhotos.add(unverified);
-                            skippedCount++;
-                            continue;
-                        }
+                    // Check capture date validity: if missing, skip and record for review rather than guessing
+                    if (!meta.hasValidCaptureDate()) {
+                        PhotoItem unverified = new PhotoItem(id, displayName, path, contentUri, 0, "Unknown", null, true);
+                        unverified.setRootDirectory(AlankaramSchedule.MAIN_FOLDER_NAME);
+                        unverified.setStatusMessage("Missing EXIF capture date (Skipped - Needs Review)");
+                        reviewNeededPhotos.add(unverified);
+                        skippedCount++;
+                        continue;
                     }
 
-                    // Create eligible PhotoItem for location organization
+                    // 4. Evaluate Destination path under Pictures/Dussehra_2026/
+                    LocationConfigManager.EvaluationResult eval = locationConfigManager.evaluatePhotoDestination(
+                            meta.latitude,
+                            meta.longitude,
+                            meta.formattedDate,
+                            meta.isoFormattedDate
+                    );
+
+                    // Destination subpath: e.g. "Sri_Gayatri_Devi/Home" or "Sri_Gayatri_Devi/2026-10-12"
+                    String destinationSubPath = eval.deviParentFolder + "/" + eval.locationSubfolder;
+
+                    // Create eligible PhotoItem
                     PhotoItem eligible = new PhotoItem(
                             id,
                             displayName,
@@ -160,12 +143,12 @@ public class LocationPhotoScanner {
                             contentUri,
                             meta.timestamp,
                             meta.isoFormattedDate != null ? meta.isoFormattedDate : meta.formattedDate,
-                            destinationFolder,
+                            destinationSubPath,
                             true
                     );
-                    eligible.setRootDirectory(LocationConfigManager.ROOT_FOLDER_NAME);
-                    eligible.setStatusMessage(statusMessage);
-                    eligible.setLocationLabel(locationLabel);
+                    eligible.setRootDirectory(AlankaramSchedule.MAIN_FOLDER_NAME);
+                    eligible.setStatusMessage(eval.statusSummary);
+                    eligible.setLocationLabel(eval.selectedAlias != null ? eval.selectedAlias : ("Date: " + eval.locationSubfolder));
                     if (meta.hasGpsCoordinates()) {
                         eligible.setLatitude(meta.latitude);
                         eligible.setLongitude(meta.longitude);

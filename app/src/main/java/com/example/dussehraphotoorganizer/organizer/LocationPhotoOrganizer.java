@@ -9,8 +9,8 @@ import android.os.Environment;
 import android.provider.MediaStore;
 
 import com.example.dussehraphotoorganizer.data.LocalHistoryRepository;
-import com.example.dussehraphotoorganizer.location.LocationConfigManager;
 import com.example.dussehraphotoorganizer.model.PhotoItem;
+import com.example.dussehraphotoorganizer.schedule.AlankaramSchedule;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -20,17 +20,18 @@ import java.util.List;
 
 /**
  * LocationPhotoOrganizer safely copies eligible camera photos into the public
- * Pictures/Location_Organized/ location or date subfolders.
+ * Pictures/Dussehra_2026/[Devi_Folder]/[Location_Or_Date_Folder]/ structure.
  *
  * Folders include:
- * - Pictures/Location_Organized/Home/
- * - Pictures/Location_Organized/Yeendda_Durga_Devi_Temple/
- * - Pictures/Location_Organized/Carshed_Bobleam/
- * - Pictures/Location_Organized/YYYY-MM-DD/
+ * - Pictures/Dussehra_2026/Sri_Gayatri_Devi/Home/
+ * - Pictures/Dussehra_2026/Sri_Gayatri_Devi/Yeendda_Durga_Devi_Temple/
+ * - Pictures/Dussehra_2026/Sri_Gayatri_Devi/Carshed_Bobleam/
+ * - Pictures/Dussehra_2026/Sri_Gayatri_Devi/YYYY-MM-DD/
+ * - Pictures/Dussehra_2026/Other_Dates/... (for dates outside festival schedule)
  *
  * STRICT SAFETY:
- * NEVER touches, modifies, moves, or deletes the original camera files.
- * Handles duplicate prevention and filename collisions safely.
+ * NEVER touches, modifies, moves, or deletes original camera photos.
+ * Prevents duplicates and handles filename collisions safely.
  */
 public class LocationPhotoOrganizer {
 
@@ -66,7 +67,6 @@ public class LocationPhotoOrganizer {
             boolean success = copySinglePhoto(photo);
             if (success) {
                 copiedCount++;
-                // Record in location history repository to prevent duplicate copies in future scans
                 historyRepository.recordProcessedPhotoForLocation(photo.getId(), photo.getFileName(), 0);
             } else {
                 failedCount++;
@@ -84,8 +84,9 @@ public class LocationPhotoOrganizer {
             return false;
         }
 
+        // Subfolder path is e.g. "Sri_Gayatri_Devi/Home" or "Sri_Gayatri_Devi/2026-10-12"
         String subfolder = photo.getDestinationFolderName();
-        String relativeFolderPath = Environment.DIRECTORY_PICTURES + "/" + LocationConfigManager.ROOT_FOLDER_NAME + "/" + subfolder + "/";
+        String relativeFolderPath = Environment.DIRECTORY_PICTURES + "/" + AlankaramSchedule.MAIN_FOLDER_NAME + "/" + subfolder + "/";
         String displayName = photo.getFileName();
         if (displayName == null || displayName.isEmpty()) {
             displayName = "IMG_" + System.currentTimeMillis() + ".jpg";
@@ -126,7 +127,7 @@ public class LocationPhotoOrganizer {
             } else {
                 // Android 8 & 9 (API 26-28) Legacy Public Pictures directory
                 File picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
-                File mainDir = new File(picturesDir, LocationConfigManager.ROOT_FOLDER_NAME);
+                File mainDir = new File(picturesDir, AlankaramSchedule.MAIN_FOLDER_NAME);
                 File targetSubDir = new File(mainDir, subfolder);
                 if (!targetSubDir.exists()) {
                     boolean created = targetSubDir.mkdirs();

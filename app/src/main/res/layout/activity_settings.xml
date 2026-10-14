@@ -214,7 +214,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="1. Location: Pictures/Location_Organized/\n   • Home/\n   • Yeendda_Durga_Devi_Temple/\n   • Carshed_Bobleam/\n   • YYYY-MM-DD/ (no GPS/unmatched)"
+                        android:text="Root: Pictures/Dussehra_2026/[Devi_Alankaram]/\n   • Home/\n   • Yeendda_Durga_Devi_Temple/\n   • Carshed_Bobleam/\n   • YYYY-MM-DD/ (No GPS or ambiguous)"
                         android:textSize="12sp"
                         android:fontFamily="monospace"
                         android:textColor="@color/text_primary"
@@ -223,10 +223,10 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="2. Festival: Pictures/Dussehra_2026/[Devi_Alankaram]/"
-                        android:textSize="12sp"
+                        android:text="Dates outside schedule -> Pictures/Dussehra_2026/Other_Dates/YYYY-MM-DD/"
+                        android:textSize="11sp"
                         android:fontFamily="monospace"
-                        android:textColor="@color/text_primary"
+                        android:textColor="@color/text_secondary"
                         android:layout_marginTop="4dp" />
 
                     <TextView

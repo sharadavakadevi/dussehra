@@ -1,0 +1,8 @@
+{
+  "name": "Dussehra Photo Organizer",
+  "description": "Smart Dussehra Navaratri & Location-Based Camera Photo Organizer with offline GPS and EXIF capture date sorting.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

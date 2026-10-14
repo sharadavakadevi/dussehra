@@ -8,6 +8,7 @@ import android.os.Build;
 import android.provider.MediaStore;
 
 import com.example.dussehraphotoorganizer.data.LocalHistoryRepository;
+import com.example.dussehraphotoorganizer.location.LocationConfigManager;
 import com.example.dussehraphotoorganizer.model.FestivalDateItem;
 import com.example.dussehraphotoorganizer.model.PhotoItem;
 import com.example.dussehraphotoorganizer.schedule.AlankaramSchedule;
@@ -16,13 +17,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * PhotoScanner scans public MediaStore photos, strictly enforcing camera-only capture rules
- * and matching only photos taken on configured Dussehra 2026 festival dates.
+ * PhotoScanner scans public MediaStore photos, strictly enforcing camera-only capture rules,
+ * matches photos taken on configured Dussehra 2026 festival dates, and sorts them into
+ * Pictures/Dussehra_2026/[Devi_Alankaram]/[Home | Yeendda_Durga_Devi_Temple | Carshed_Bobleam | YYYY-MM-DD]/.
  */
 public class PhotoScanner {
 
     private final Context context;
     private final AlankaramSchedule schedule;
+    private final LocationConfigManager locationConfigManager;
     private final PhotoMetadataReader metadataReader;
     private final LocalHistoryRepository historyRepository;
 
@@ -33,6 +36,7 @@ public class PhotoScanner {
     public PhotoScanner(Context context) {
         this.context = context.getApplicationContext();
         this.schedule = new AlankaramSchedule(context);
+        this.locationConfigManager = new LocationConfigManager(context);
         this.metadataReader = new PhotoMetadataReader(context);
         this.historyRepository = new LocalHistoryRepository(context);
     }
@@ -94,7 +98,6 @@ public class PhotoScanner {
                     // 1. Strict Camera Verification Check
                     boolean isCamera = metadataReader.isAuthenticCameraPhoto(path, displayName, customCameraPath);
                     if (!isCamera) {
-                        // Strictly skip WhatsApp, Telegram, Screenshots, Downloads, etc.
                         skippedCount++;
                         continue;
                     }
@@ -105,9 +108,9 @@ public class PhotoScanner {
                         continue;
                     }
 
-                    // 3. Extract exact capture date from EXIF (or MediaStore creation fallback)
-                    PhotoMetadataReader.MetadataResult meta = metadataReader.extractCaptureDate(contentUri, dateTaken);
-                    if (!meta.isValid()) {
+                    // 3. Extract exact capture date and GPS from EXIF
+                    PhotoMetadataReader.PhotoFullMetadata meta = metadataReader.extractFullMetadata(contentUri, dateTaken);
+                    if (!meta.hasValidCaptureDate()) {
                         PhotoItem unverified = new PhotoItem(id, displayName, path, contentUri, 0, "Unknown", null, true);
                         unverified.setStatusMessage("Missing capture date (Needs Review)");
                         reviewNeededPhotos.add(unverified);
@@ -117,13 +120,21 @@ public class PhotoScanner {
                     // 4. Match capture date against Dussehra 2026 Schedule
                     FestivalDateItem matchedFestival = schedule.getFestivalDateItem(meta.formattedDate);
                     if (matchedFestival == null) {
-                        // Camera photo captured on non-festival date -> leave untouched!
+                        // Camera photo captured on non-festival date
                         skippedCount++;
                         continue;
                     }
 
-                    // Eligible matching festival photo!
-                    // Note: folderName does NOT contain date
+                    // 5. Evaluate Location under the Devi folder
+                    LocationConfigManager.EvaluationResult eval = locationConfigManager.evaluatePhotoDestination(
+                            meta.latitude,
+                            meta.longitude,
+                            meta.formattedDate,
+                            meta.isoFormattedDate
+                    );
+
+                    String destinationSubPath = matchedFestival.getFolderName() + "/" + eval.locationSubfolder;
+
                     PhotoItem eligible = new PhotoItem(
                             id,
                             displayName,
@@ -131,10 +142,16 @@ public class PhotoScanner {
                             contentUri,
                             meta.timestamp,
                             meta.formattedDate,
-                            matchedFestival.getFolderName(),
+                            destinationSubPath,
                             true
                     );
-                    eligible.setStatusMessage(matchedFestival.getTeluguName() + " (" + meta.source + ")");
+                    eligible.setRootDirectory(AlankaramSchedule.MAIN_FOLDER_NAME);
+                    eligible.setStatusMessage(matchedFestival.getTeluguName() + " (" + eval.statusSummary + ")");
+                    eligible.setLocationLabel(eval.selectedAlias != null ? eval.selectedAlias : ("Date: " + eval.locationSubfolder));
+                    if (meta.hasGpsCoordinates()) {
+                        eligible.setLatitude(meta.latitude);
+                        eligible.setLongitude(meta.longitude);
+                    }
                     eligiblePhotos.add(eligible);
 
                     if (listener != null && totalScanned % 20 == 0) {

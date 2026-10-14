@@ -15,7 +15,7 @@
             android:id="@+id/toolbarLocations"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="Registered Locations"
+            app:title="Registered GPS Locations"
             app:titleTextColor="@color/text_on_saffron"
             app:navigationIcon="@android:drawable/ic_menu_revert" />
     </com.google.android.material.appbar.AppBarLayout>
@@ -47,7 +47,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Offline GPS Matching"
+                    android:text="Offline EXIF GPS Matching (40m Radius)"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:textColor="@color/maroon_kumkum" />
@@ -55,12 +55,26 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Location matching works 100% offline using EXIF coordinates. Unmatched or GPS-missing photos automatically go to Pictures/Location_Organized/YYYY-MM-DD/."
-                    android:textSize="12sp"
+                    android:text="Photos are saved in Pictures/Dussehra_2026/[Devi_Alankaram]/[Home | Yeendda_Durga_Devi_Temple | Carshed_Bobleam]/. Unmatched, missing GPS, or ambiguous matches automatically go to date subfolder [YYYY-MM-DD]/."
+                    android:textSize="11sp"
                     android:textColor="@color/text_secondary"
                     android:layout_marginTop="4dp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
+
+        <!-- Test Coordinates Function Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnTestCoordinates"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Test GPS Matching &amp; Destination Path"
+            android:textSize="13sp"
+            app:cornerRadius="10dp"
+            android:backgroundTint="@color/primary_saffron"
+            android:textColor="@color/text_on_saffron"
+            app:icon="@android:drawable/ic_menu_mylocation"
+            app:iconGravity="textStart"
+            android:layout_marginBottom="10dp" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvLocations"
@@ -68,12 +82,12 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:clipToPadding="false"
-            android:paddingBottom="12dp" />
+            android:paddingBottom="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnResetLocations"
             android:layout_width="match_parent"
-            android:layout_height="50dp"
+            android:layout_height="48dp"
             android:text="Reset Locations to Defaults"
             style="@style/Widget.Material3.Button.OutlinedButton"
             android:textColor="@color/maroon_kumkum"

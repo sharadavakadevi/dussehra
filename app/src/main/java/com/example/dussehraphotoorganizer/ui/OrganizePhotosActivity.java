@@ -19,12 +19,12 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.example.dussehraphotoorganizer.R;
-import com.example.dussehraphotoorganizer.location.LocationConfigManager;
 import com.example.dussehraphotoorganizer.model.PhotoItem;
 import com.example.dussehraphotoorganizer.organizer.LocationPhotoOrganizer;
 import com.example.dussehraphotoorganizer.organizer.PhotoOrganizer;
 import com.example.dussehraphotoorganizer.scanner.LocationPhotoScanner;
 import com.example.dussehraphotoorganizer.scanner.PhotoScanner;
+import com.example.dussehraphotoorganizer.schedule.AlankaramSchedule;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
@@ -122,11 +122,7 @@ public class OrganizePhotosActivity extends AppCompatActivity {
     }
 
     private void updateModeUi() {
-        if (MODE_FESTIVAL.equals(currentMode)) {
-            tvModeTargetDirectory.setText("Target: Pictures/Dussehra_2026/ (11 Goddess Alankaram subfolders)");
-        } else {
-            tvModeTargetDirectory.setText("Target: Pictures/Location_Organized/ (Home, Yeendda_Durga_Devi_Temple, Carshed_Bobleam, YYYY-MM-DD)");
-        }
+        tvModeTargetDirectory.setText("Target: Pictures/Dussehra_2026/[Devi_Alankaram]/[Home | Yeendda_Durga_Devi_Temple | Carshed_Bobleam | YYYY-MM-DD]/");
     }
 
     private void startScanning() {
@@ -208,9 +204,8 @@ public class OrganizePhotosActivity extends AppCompatActivity {
             return;
         }
 
-        String targetPath = MODE_FESTIVAL.equals(currentMode) ? "Pictures/Dussehra_2026/" : "Pictures/Location_Organized/";
-        String msg = String.format("Selected %d camera photos will be safely copied into %s subfolders.\n\nOriginal camera photos remain untouched.",
-                count, targetPath);
+        String msg = String.format("Selected %d camera photos will be safely copied into Pictures/Dussehra_2026/[Devi_Alankaram]/[Location_Or_Date]/\n\nOriginal camera photos remain untouched.",
+                count);
 
         new AlertDialog.Builder(this)
                 .setTitle(R.string.dialog_confirm_title)
@@ -237,10 +232,8 @@ public class OrganizePhotosActivity extends AppCompatActivity {
             int copied;
             int skipped;
             int failed;
-            String root;
 
             if (MODE_FESTIVAL.equals(currentMode)) {
-                root = "Pictures/Dussehra_2026/";
                 PhotoOrganizer.CopyResult result = festivalOrganizer.copyPhotosToFestivalFolders(photoList, (current, total, name) -> {
                     runOnUiThread(() -> tvFoundCount.setText(String.format("Copying (%d/%d): %s", current, total, name)));
                 });
@@ -248,7 +241,6 @@ public class OrganizePhotosActivity extends AppCompatActivity {
                 skipped = result.skippedCount;
                 failed = result.failedCount;
             } else {
-                root = "Pictures/Location_Organized/";
                 LocationPhotoOrganizer.CopyResult result = locationOrganizer.copyPhotosToLocationFolders(photoList, (current, total, name, folder) -> {
                     runOnUiThread(() -> tvFoundCount.setText(String.format("Copying (%d/%d) to %s: %s", current, total, folder, name)));
                 });
@@ -264,8 +256,8 @@ public class OrganizePhotosActivity extends AppCompatActivity {
 
                 new AlertDialog.Builder(OrganizePhotosActivity.this)
                         .setTitle("Organization Complete")
-                        .setMessage(String.format("Result:\n• Copied: %d\n• Skipped: %d\n• Failed: %d\n\nAll photos are saved in %s\nOriginal camera photos remain untouched.",
-                                copied, skipped, failed, root))
+                        .setMessage(String.format("Result:\n• Copied: %d\n• Skipped: %d\n• Failed: %d\n\nAll photos are saved in Pictures/Dussehra_2026/[Devi_Folder]/[Location_Or_Date]/\nOriginal camera photos remain untouched.",
+                                copied, skipped, failed))
                         .setPositiveButton("OK", (dialog, which) -> finish())
                         .show();
             });
@@ -286,7 +278,7 @@ public class OrganizePhotosActivity extends AppCompatActivity {
             PhotoItem item = photoList.get(position);
             holder.tvPhotoFileName.setText(item.getFileName());
             holder.tvCaptureDate.setText("Captured: " + item.getCaptureDateFormatted());
-            holder.tvDestinationFolder.setText("Folder: " + item.getDestinationFolderName());
+            holder.tvDestinationFolder.setText("Path: " + item.getDestinationFolderName());
             holder.tvStatusBadge.setText(item.getStatusMessage());
 
             holder.cbSelectPhoto.setOnCheckedChangeListener(null);
