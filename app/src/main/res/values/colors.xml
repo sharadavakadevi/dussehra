@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Devotional Saffron, Maroon, Gold, and Cream Palette -->
+    <color name="primary_saffron">#E65100</color>
+    <color name="primary_saffron_dark">#BF360C</color>
+    <color name="primary_saffron_light">#FFB74D</color>
+    
+    <color name="maroon_kumkum">#780016</color>
+    <color name="maroon_dark">#4A000E</color>
+    
+    <color name="gold_turmeric">#D4AF37</color>
+    <color name="gold_light">#FFE082</color>
+
+    <color name="cream_background">#FFFDF8</color>
+    <color name="cream_surface">#FFF8EE</color>
+    <color name="card_border">#F3E5D8</color>
+
+    <color name="text_primary">#2A1810</color>
+    <color name="text_secondary">#6D5D53</color>
+    <color name="text_on_saffron">#FFFFFF</color>
+    <color name="text_on_maroon">#FFFFFF</color>
+
+    <color name="status_success">#2E7D32</color>
+    <color name="status_warning">#EF6C00</color>
+    <color name="status_error">#C62828</color>
+
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="divider_color">#EFE6DC</color>
+</resources>

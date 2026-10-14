@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.DussehraPhotoOrganizer" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Primary brand color -->
+        <item name="colorPrimary">@color/primary_saffron</item>
+        <item name="colorOnPrimary">@color/text_on_saffron</item>
+        <item name="colorPrimaryContainer">@color/primary_saffron_light</item>
+        
+        <!-- Secondary / Accent brand color -->
+        <item name="colorSecondary">@color/maroon_kumkum</item>
+        <item name="colorOnSecondary">@color/text_on_maroon</item>
+
+        <!-- Background & Surface -->
+        <item name="android:colorBackground">@color/cream_background</item>
+        <item name="colorSurface">@color/cream_surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+
+        <!-- Status bar -->
+        <item name="android:statusBarColor">@color/primary_saffron_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

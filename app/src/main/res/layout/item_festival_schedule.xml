@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardCornerRadius="14dp"
+    app:cardElevation="2dp"
+    app:strokeColor="@color/card_border"
+    app:strokeWidth="1dp"
+    app:cardBackgroundColor="@color/white"
+    android:layout_marginBottom="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tvDate"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="11-10-2026"
+                android:textSize="14sp"
+                android:textColor="@color/maroon_kumkum"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvDayTithi"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ఆదివారం శుద్ధ పాడ్యమి"
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvTeluguName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="శ్రీ బాలాత్రిపురసుందరి దేవి"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/primary_saffron_dark"
+            android:layout_marginTop="6dp" />
+
+        <TextView
+            android:id="@+id/tvEnglishName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Sri Bala Tripura Sundari Devi"
+            android:textSize="14sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginTop="2dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="10dp"
+            android:background="@color/cream_surface"
+            android:padding="8dp">
+
+            <TextView
+                android:id="@+id/tvFolderName"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="Folder: Sri_Bala_Tripura_Sundari_Devi"
+                android:textSize="12sp"
+                android:textColor="@color/text_primary"
+                android:fontFamily="monospace" />
+
+            <TextView
+                android:id="@+id/tvPhotoCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0 photos"
+                android:textSize="12sp"
+                android:textColor="@color/maroon_kumkum"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp"
+            android:gravity="end">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnViewFolderPhotos"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:text="ఫోటోలు చూడండి / View"
+                android:textSize="12sp"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:textColor="@color/primary_saffron_dark" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnEditSchedule"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:text="సవరించండి / Edit"
+                android:textSize="12sp"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:textColor="@color/text_secondary" />
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

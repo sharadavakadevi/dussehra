@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/cream_background">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/primary_saffron">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:title="@string/app_name"
+            app:titleTextColor="@color/text_on_saffron"
+            app:subtitle="@string/app_subtitle"
+            app:subtitleTextColor="@color/gold_light" />
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Today's Devi Alankaram Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardTodayAlankaram"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="3dp"
+                app:strokeColor="@color/gold_turmeric"
+                app:strokeWidth="1.5dp"
+                app:cardBackgroundColor="@color/cream_surface"
+                android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="18dp">
+
+                    <TextView
+                        android:id="@+id/tvTodayDate"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="13-10-2026"
+                        android:textSize="14sp"
+                        android:textColor="@color/maroon_kumkum"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvTodayTeluguTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="శ్రీ అన్నపూర్ణ దేవి"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_saffron_dark"
+                        android:layout_marginTop="6dp" />
+
+                    <TextView
+                        android:id="@+id/tvTodayEnglishTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Sri Annapurna Devi"
+                        android:textSize="15sp"
+                        android:textColor="@color/text_secondary"
+                        android:layout_marginTop="2dp" />
+
+                    <TextView
+                        android:id="@+id/tvTodayFolderTarget"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Target: Pictures/Dussehra_2026/Sri_Annapurna_Devi/"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_secondary"
+                        android:layout_marginTop="8dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Large Action Buttons -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnOrganizeExisting"
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:text="@string/btn_organize_existing"
+                android:textSize="15sp"
+                app:cornerRadius="12dp"
+                android:backgroundTint="@color/primary_saffron"
+                android:textColor="@color/text_on_saffron"
+                app:icon="@android:drawable/ic_menu_camera"
+                app:iconGravity="textStart"
+                android:layout_marginBottom="10dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnOrganizeNew"
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:text="@string/btn_organize_new"
+                android:textSize="15sp"
+                app:cornerRadius="12dp"
+                android:backgroundTint="@color/maroon_kumkum"
+                android:textColor="@color/text_on_maroon"
+                app:icon="@android:drawable/ic_popup_sync"
+                app:iconGravity="textStart"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Secondary Navigation Buttons -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="10dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnFestivalSchedule"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="52dp"
+                    android:text="షెడ్యూల్ / Schedule"
+                    app:cornerRadius="10dp"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:textColor="@color/maroon_kumkum"
+                    app:strokeColor="@color/maroon_kumkum"
+                    android:layout_marginEnd="6dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnViewOrganized"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="52dp"
+                    android:text="గ్యాలరీ / Gallery"
+                    app:cornerRadius="10dp"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:textColor="@color/primary_saffron_dark"
+                    app:strokeColor="@color/primary_saffron_dark"
+                    android:layout_marginStart="6dp" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSettings"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="@string/btn_settings"
+                app:cornerRadius="10dp"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Last Run Status Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="1dp"
+                app:strokeColor="@color/card_border"
+                app:strokeWidth="1dp"
+                app:cardBackgroundColor="@color/white">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/last_result_title"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/maroon_kumkum" />
+
+                    <TextView
+                        android:id="@+id/tvLastResult"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/last_result_none"
+                        android:textSize="13sp"
+                        android:textColor="@color/text_primary"
+                        android:layout_marginTop="4dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

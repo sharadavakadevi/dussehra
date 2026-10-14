@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Dussehra Photo Organizer</string>
+    <string name="app_subtitle">దసరా నవరాత్రి ఫోటో ఆర్గనైజర్ (2026)</string>
+    
+    <!-- Dashboard -->
+    <string name="today_date_label">ఈ రోజు తేది / Today\'s Date</string>
+    <string name="today_alankaram_label">నేటి అమ్మవారి అలంకారం / Today\'s Alankaram</string>
+    <string name="no_alankaram_today">ఈ రోజు ప్రత్యేక నవరాత్రి అలంకారం లేదు (పండుగ తేదిలు: 11-10 నుండి 21-10)</string>
+    <string name="btn_organize_existing">ఫోటోలను అమర్చండి / Organize Existing Photos</string>
+    <string name="btn_organize_new">కొత్త ఫోటోలను అమర్చండి / Organize New Photos</string>
+    <string name="btn_festival_schedule">నవరాత్రి అలంకారాలు &amp; ఫోల్డర్లు / Festival Schedule</string>
+    <string name="btn_view_organized">అమర్చిన ఫోటోలు చూడండి / View Organized Photos</string>
+    <string name="btn_settings">సెట్టింగ్స్ / Settings</string>
+    <string name="last_result_title">చివరి ఫలితం / Last Result</string>
+    <string name="last_result_none">ఇంకా ఫోటోలను అమర్చలేదు / No photos processed yet</string>
+
+    <!-- Scanner / Organizer -->
+    <string name="scanning_camera_photos">కెమెరా ఫోటోలను శోధిస్తున్నాం… / Scanning Camera Photos…</string>
+    <string name="camera_photos_only_notice">Strict Policy: Camera photos only from DCIM/Camera. WhatsApp, Telegram, Screenshots, and Downloads are excluded.</string>
+    <string name="select_all">అన్నీ ఎంచుకోండి / Select All</string>
+    <string name="deselect_all">ఎంపిక రద్దు / Deselect All</string>
+    <string name="confirm_copy_button">ఫోల్డర్ లోకి భద్రపరచండి / Copy Selected to Folders</string>
+    <string name="summary_found">గుర్తించిన ఫోటోలు / Found: %1$d</string>
+    <string name="summary_copied">కాపీ చేసినవి / Copied: %1$d</string>
+    <string name="summary_skipped">దాటివేసినవి / Skipped: %1$d</string>
+    <string name="summary_failed">విఫలమైనవి / Failed: %1$d</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_confirm_title">ఫోటోలను కాపీ చేయాలా? / Confirm Copy</string>
+    <string name="dialog_confirm_message">ఎంచుకున్న %1$d కెమెరా ఫోటోలు వాటి సంబంధిత దేవి అలంకారం ఫోల్డర్ లోకి సురక్షితంగా కాపీ చేయబడతాయి.\n\nమీ అసలు ఫోటోలు అలాగే ఉంటాయి, తొలగించబడవు.</string>
+    <string name="dialog_yes">కాపీ చేయండి / Copy</string>
+    <string name="dialog_cancel">రద్దు / Cancel</string>
+
+    <!-- Schedule Screen -->
+    <string name="title_festival_schedule">దసరా నవరాత్రి షెడ్యూల్ 2026</string>
+    <string name="temple_poster_title">శ్రీ దుర్గాదేవి అమ్మవారి దసరా ఉత్సవములు</string>
+    <string name="temple_location">విశాఖపట్నం, మధురవాడ, చంద్రంపాలెం జాతర గట్టు</string>
+    <string name="edit_schedule_item">సవరించండి / Edit</string>
+    <string name="save_schedule">భద్రపరచండి / Save</string>
+
+    <!-- Settings -->
+    <string name="pref_auto_organize">ఆటోమేటిక్ ఆర్గనైజర్ (Background)</string>
+    <string name="pref_auto_organize_desc">కొత్త కెమెరా ఫోటోలు తీసినప్పుడు ఆటోమేటిక్ గా ఫోల్డర్ లోకి కాపీ చేస్తుంది</string>
+    <string name="pref_include_videos">వీడియోలను కూడా చేర్చండి / Include Videos</string>
+    <string name="pref_include_videos_desc">సాధారణంగా ఫోటోలు మాత్రమే కాపీ అవుతాయి. వీడియోలు కావాలంటే ఇది ఆన్ చేయండి.</string>
+    <string name="pref_camera_path">కెమెరా ఫోల్డర్ / Camera Directory</string>
+    <string name="storage_location_label">స్టోరేజ్ లొకేషన్: Pictures/Dussehra_2026/</string>
+</resources>
