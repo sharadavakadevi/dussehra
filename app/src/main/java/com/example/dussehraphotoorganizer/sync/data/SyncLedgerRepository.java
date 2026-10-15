@@ -182,8 +182,9 @@ public class SyncLedgerRepository {
     }
 
     public boolean isPhotoNewerThanBaseline(long captureTimestamp) {
-        long baseline = getSyncBaselineTimestamp();
-        return baseline == 0 || captureTimestamp >= baseline;
+        // The scanner syncs all eligible camera photos matching the 11 Dussehra festival dates,
+        // regardless of whether they were taken before or after pairing.
+        return true;
     }
 
     public synchronized void unpair() {

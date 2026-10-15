@@ -59,7 +59,6 @@ public class SyncCatalogScanner {
 
     public List<SyncPacket.PhotoCatalogItem> scanLocalCameraPhotos() {
         List<SyncPacket.PhotoCatalogItem> catalog = new ArrayList<>();
-        long baselineTimestamp = syncLedgerRepository.getSyncBaselineTimestamp();
 
         String[] projection;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -117,15 +116,9 @@ public class SyncCatalogScanner {
                         continue;
                     }
 
-                    // 2. New photos only:
-                    // Exclude older gallery photos taken prior to synchronization setup.
-                    if (baselineTimestamp > 0 && dateTaken > 0 && dateTaken < baselineTimestamp) {
-                        continue;
-                    }
-
                     Uri contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
 
-                    // 3. Extract Full EXIF Metadata (capture timestamp & GPS)
+                    // 2. Extract Full EXIF Metadata (capture timestamp & GPS)
                     PhotoMetadataReader.PhotoFullMetadata meta = metadataReader.extractFullMetadata(contentUri, dateTaken);
 
                     // If EXIF capture date is missing or unreadable:
@@ -140,13 +133,11 @@ public class SyncCatalogScanner {
                         continue;
                     }
 
-                    // Secondary baseline check against true EXIF timestamp
-                    if (baselineTimestamp > 0 && meta.timestamp > 0 && meta.timestamp < baselineTimestamp) {
-                        continue;
-                    }
-
-                    // 4. Strict Dussehra Festival Date check:
+                    // 3. Strict Dussehra Festival Date check:
                     // MUST match one of the 11 official configured Dussehra 2026 festival dates.
+                    // The scanner syncs all eligible camera photos matching the 11 Dussehra festival dates,
+                    // regardless of whether they were taken before or after pairing.
+                    // The persistent SHA-256 deduplication ledger guarantees photos are never transferred twice or duplicated.
                     FestivalDateItem matchedFestival = alankaramSchedule.getFestivalDateItem(meta.formattedDate);
                     if (matchedFestival == null) {
                         // Camera photo captured on a non-festival date (e.g. daily/unrelated photo).
