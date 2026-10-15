@@ -1,0 +1,277 @@
+From 63227a73a003a7c2c4c371acd3df385c95c90f81 Mon Sep 17 00:00:00 2001
+From: sharadavakadevi <geethamalipeddi6@gmail.com>
+Date: Thu, 15 Oct 2026 10:49:21 +0000
+Subject: [PATCH] fix(scanner): resolve No photos regression with MediaStore
+ fallback, safe EXIF parsing, and permission checks
+
+---
+ .../scanner/LocationPhotoScanner.java         | 33 +++++-----
+ .../scanner/PhotoMetadataReader.java          | 61 ++++++++++++++++---
+ .../scanner/PhotoScanner.java                 | 15 +++--
+ .../ui/OrganizePhotosActivity.java            | 18 +++++-
+ 4 files changed, 97 insertions(+), 30 deletions(-)
+
+diff --git a/app/src/main/java/com/example/dussehraphotoorganizer/scanner/LocationPhotoScanner.java b/app/src/main/java/com/example/dussehraphotoorganizer/scanner/LocationPhotoScanner.java
+index 7d58644..1ae9486 100644
+--- a/app/src/main/java/com/example/dussehraphotoorganizer/scanner/LocationPhotoScanner.java
++++ b/app/src/main/java/com/example/dussehraphotoorganizer/scanner/LocationPhotoScanner.java
+@@ -59,6 +59,7 @@ public class LocationPhotoScanner {
+                     MediaStore.Images.Media._ID,
+                     MediaStore.Images.Media.DISPLAY_NAME,
+                     MediaStore.Images.Media.RELATIVE_PATH,
++                    MediaStore.Images.Media.DATA,
+                     MediaStore.Images.Media.DATE_TAKEN,
+                     MediaStore.Images.Media.SIZE
+             };
+@@ -85,9 +86,10 @@ public class LocationPhotoScanner {
+             if (cursor != null) {
+                 int idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID);
+                 int nameCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME);
+-                int pathCol = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+-                        ? cursor.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)
+-                        : cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
++                int relPathCol = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
++                        ? cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
++                        : -1;
++                int dataCol = cursor.getColumnIndex(MediaStore.Images.Media.DATA);
+                 int dateTakenCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN);
+                 int sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE);
+ 
+@@ -95,7 +97,13 @@ public class LocationPhotoScanner {
+                     totalScanned++;
+                     long id = cursor.getLong(idCol);
+                     String displayName = cursor.getString(nameCol);
+-                    String path = cursor.getString(pathCol);
++                    
++                    // Robust path extraction: try RELATIVE_PATH, fallback to DATA
++                    String path = (relPathCol != -1) ? cursor.getString(relPathCol) : null;
++                    if ((path == null || path.trim().isEmpty()) && dataCol != -1) {
++                        path = cursor.getString(dataCol);
++                    }
++                    
+                     long dateTaken = cursor.getLong(dateTakenCol);
+                     long size = cursor.getLong(sizeCol);
+ 
+@@ -117,7 +125,7 @@ public class LocationPhotoScanner {
+                     // 3. Extract Full EXIF Metadata (Date & GPS)
+                     PhotoMetadataReader.PhotoFullMetadata meta = metadataReader.extractFullMetadata(contentUri, dateTaken);
+ 
+-                    // Check capture date validity: if missing, skip and record for review rather than guessing
++                    // Check capture date validity: if missing, record for review rather than guessing
+                     if (!meta.hasValidCaptureDate()) {
+                         PhotoItem unverified = new PhotoItem(id, displayName, path, contentUri, 0, "Unknown", null, true);
+                         unverified.setRootDirectory(AlankaramSchedule.MAIN_FOLDER_NAME);
+@@ -127,14 +135,9 @@ public class LocationPhotoScanner {
+                         continue;
+                     }
+ 
+-                    // 4. Strict Dussehra Festival Date Check
+-                    FestivalDateItem matchedFestival = schedule.getFestivalDateItem(meta.formattedDate);
+-                    if (matchedFestival == null) {
+-                        skippedCount++;
+-                        continue;
+-                    }
+-
+-                    // 5. Evaluate Destination path under Pictures/Dussehra_2026/
++                    // 4. Evaluate Destination path under Pictures/Dussehra_2026/
++                    // Uses LocationConfigManager to map to Devi Alankaram folder if on festival date,
++                    // or to Other_Dates folder if outside festival schedule.
+                     LocationConfigManager.EvaluationResult eval = locationConfigManager.evaluatePhotoDestination(
+                             meta.latitude,
+                             meta.longitude,
+@@ -142,8 +145,8 @@ public class LocationPhotoScanner {
+                             meta.isoFormattedDate
+                     );
+ 
+-                    // Destination subpath: e.g. "Sri_Gayatri_Devi/Home" or "Sri_Gayatri_Devi/2026-10-12"
+-                    String destinationSubPath = matchedFestival.getFolderName() + "/" + eval.locationSubfolder;
++                    // Destination subpath: e.g. "Sri_Gayatri_Devi/Home" or "Other_Dates/Home" or "Sri_Gayatri_Devi/2026-10-12"
++                    String destinationSubPath = eval.deviParentFolder + "/" + eval.locationSubfolder;
+ 
+                     // Create eligible PhotoItem
+                     PhotoItem eligible = new PhotoItem(
+diff --git a/app/src/main/java/com/example/dussehraphotoorganizer/scanner/PhotoMetadataReader.java b/app/src/main/java/com/example/dussehraphotoorganizer/scanner/PhotoMetadataReader.java
+index ad7cde8..f621882 100644
+--- a/app/src/main/java/com/example/dussehraphotoorganizer/scanner/PhotoMetadataReader.java
++++ b/app/src/main/java/com/example/dussehraphotoorganizer/scanner/PhotoMetadataReader.java
+@@ -91,6 +91,29 @@ public class PhotoMetadataReader {
+         return new MetadataResult(full.formattedDate, full.timestamp, full.source);
+     }
+ 
++    /**
++     * Helper to parse date strings across common camera EXIF formatting variations
++     */
++    private Date parseExifDate(String dateStr) {
++        if (dateStr == null || dateStr.trim().isEmpty()) return null;
++        String trimmed = dateStr.trim();
++        String[] patterns = new String[]{
++                "yyyy:MM:dd HH:mm:ss",
++                "yyyy-MM-dd HH:mm:ss",
++                "yyyy/MM/dd HH:mm:ss",
++                "yyyy:MM:dd",
++                "yyyy-MM-dd"
++        };
++        for (String pattern : patterns) {
++            try {
++                SimpleDateFormat sdf = new SimpleDateFormat(pattern, Locale.US);
++                Date d = sdf.parse(trimmed);
++                if (d != null) return d;
++            } catch (Exception ignored) {}
++        }
++        return null;
++    }
++
+     /**
+      * Extracts comprehensive EXIF metadata including original capture date (both dd-MM-yyyy and yyyy-MM-dd)
+      * and GPS coordinates without geographic redaction.
+@@ -106,10 +129,14 @@ public class PhotoMetadataReader {
+         if (photoUri != null) {
+             Uri targetUri = photoUri;
+             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+-                try {
+-                    targetUri = MediaStore.setRequireOriginal(photoUri);
+-                } catch (Exception ignored) {
+-                    targetUri = photoUri;
++                boolean hasLocationPermission = androidx.core.content.ContextCompat.checkSelfPermission(
++                        context, android.Manifest.permission.ACCESS_MEDIA_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED;
++                if (hasLocationPermission) {
++                    try {
++                        targetUri = MediaStore.setRequireOriginal(photoUri);
++                    } catch (Exception ignored) {
++                        targetUri = photoUri;
++                    }
+                 }
+             }
+ 
+@@ -117,13 +144,16 @@ public class PhotoMetadataReader {
+                 if (is != null) {
+                     ExifInterface exif = new ExifInterface(is);
+ 
+-                    // 1. Parse Capture Date
++                    // 1. Parse Capture Date from multiple standard EXIF tags
+                     String exifDateStr = exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL);
+                     if (exifDateStr == null) {
+                         exifDateStr = exif.getAttribute(ExifInterface.TAG_DATETIME_DIGITIZED);
+                     }
++                    if (exifDateStr == null) {
++                        exifDateStr = exif.getAttribute(ExifInterface.TAG_DATETIME);
++                    }
+                     if (exifDateStr != null && !exifDateStr.trim().isEmpty()) {
+-                        Date parsed = exifDateFormat.parse(exifDateStr.trim());
++                        Date parsed = parseExifDate(exifDateStr);
+                         if (parsed != null) {
+                             timestamp = parsed.getTime();
+                             formattedDate = displayDateFormat.format(parsed);
+@@ -146,8 +176,14 @@ public class PhotoMetadataReader {
+                         if (fallbackIs != null) {
+                             ExifInterface exif = new ExifInterface(fallbackIs);
+                             String exifDateStr = exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL);
++                            if (exifDateStr == null) {
++                                exifDateStr = exif.getAttribute(ExifInterface.TAG_DATETIME_DIGITIZED);
++                            }
++                            if (exifDateStr == null) {
++                                exifDateStr = exif.getAttribute(ExifInterface.TAG_DATETIME);
++                            }
+                             if (exifDateStr != null && !exifDateStr.trim().isEmpty()) {
+-                                Date parsed = exifDateFormat.parse(exifDateStr.trim());
++                                Date parsed = parseExifDate(exifDateStr);
+                                 if (parsed != null) {
+                                     timestamp = parsed.getTime();
+                                     formattedDate = displayDateFormat.format(parsed);
+@@ -168,8 +204,13 @@ public class PhotoMetadataReader {
+ 
+         // MediaStore Date Taken fallback (creation time recorded by camera service)
+         if (formattedDate == null && mediaStoreDateTaken > 0) {
+-            timestamp = mediaStoreDateTaken;
+-            Date d = new Date(mediaStoreDateTaken);
++            long ms = mediaStoreDateTaken;
++            // Handle timestamps stored in seconds instead of milliseconds
++            if (ms < 100000000000L) {
++                ms *= 1000L;
++            }
++            timestamp = ms;
++            Date d = new Date(ms);
+             formattedDate = displayDateFormat.format(d);
+             isoFormattedDate = isoDateFormat.format(d);
+             source = "MediaStore Creation Time";
+@@ -212,7 +253,7 @@ public class PhotoMetadataReader {
+         }
+ 
+         public boolean hasValidCaptureDate() {
+-            return isoFormattedDate != null && !isoFormattedDate.isEmpty() && timestamp > 0;
++            return (formattedDate != null && !formattedDate.isEmpty()) || (isoFormattedDate != null && !isoFormattedDate.isEmpty());
+         }
+ 
+         public boolean hasGpsCoordinates() {
+diff --git a/app/src/main/java/com/example/dussehraphotoorganizer/scanner/PhotoScanner.java b/app/src/main/java/com/example/dussehraphotoorganizer/scanner/PhotoScanner.java
+index 0f97f56..74706f5 100644
+--- a/app/src/main/java/com/example/dussehraphotoorganizer/scanner/PhotoScanner.java
++++ b/app/src/main/java/com/example/dussehraphotoorganizer/scanner/PhotoScanner.java
+@@ -53,6 +53,7 @@ public class PhotoScanner {
+                     MediaStore.Images.Media._ID,
+                     MediaStore.Images.Media.DISPLAY_NAME,
+                     MediaStore.Images.Media.RELATIVE_PATH,
++                    MediaStore.Images.Media.DATA,
+                     MediaStore.Images.Media.DATE_TAKEN,
+                     MediaStore.Images.Media.SIZE
+             };
+@@ -79,9 +80,10 @@ public class PhotoScanner {
+             if (cursor != null) {
+                 int idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID);
+                 int nameCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME);
+-                int pathCol = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+-                        ? cursor.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)
+-                        : cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
++                int relPathCol = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
++                        ? cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
++                        : -1;
++                int dataCol = cursor.getColumnIndex(MediaStore.Images.Media.DATA);
+                 int dateTakenCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN);
+                 int sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE);
+ 
+@@ -89,7 +91,12 @@ public class PhotoScanner {
+                     totalScanned++;
+                     long id = cursor.getLong(idCol);
+                     String displayName = cursor.getString(nameCol);
+-                    String path = cursor.getString(pathCol);
++                    
++                    String path = (relPathCol != -1) ? cursor.getString(relPathCol) : null;
++                    if ((path == null || path.trim().isEmpty()) && dataCol != -1) {
++                        path = cursor.getString(dataCol);
++                    }
++                    
+                     long dateTaken = cursor.getLong(dateTakenCol);
+                     long size = cursor.getLong(sizeCol);
+ 
+diff --git a/app/src/main/java/com/example/dussehraphotoorganizer/ui/OrganizePhotosActivity.java b/app/src/main/java/com/example/dussehraphotoorganizer/ui/OrganizePhotosActivity.java
+index b1ac48b..6434d47 100644
+--- a/app/src/main/java/com/example/dussehraphotoorganizer/ui/OrganizePhotosActivity.java
++++ b/app/src/main/java/com/example/dussehraphotoorganizer/ui/OrganizePhotosActivity.java
+@@ -118,7 +118,23 @@ public class OrganizePhotosActivity extends AppCompatActivity {
+         btnAutoCopyAll.setOnClickListener(v -> executeAutoCopyAll());
+ 
+         updateModeUi();
+-        startScanning();
++        if (!PermissionHelper.hasAllPermissions(this)) {
++            PermissionHelper.requestPermissions(this);
++        } else {
++            startScanning();
++        }
++    }
++
++    @Override
++    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
++        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
++        if (requestCode == PermissionHelper.REQUEST_CODE_PERMISSIONS) {
++            if (PermissionHelper.hasAllPermissions(this)) {
++                startScanning();
++            } else {
++                Toast.makeText(this, "Storage/Photos permission required to access DCIM/Camera photos.", Toast.LENGTH_LONG).show();
++            }
++        }
+     }
+ 
+     private void updateModeUi() {
+-- 
+2.34.1
+
