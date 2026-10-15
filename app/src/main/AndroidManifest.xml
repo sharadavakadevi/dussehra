@@ -23,6 +23,15 @@
     <!-- Optional notification for background organization results -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Automatic Wi-Fi P2P Synchronization Permissions -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -65,6 +74,16 @@
             android:name=".ui.ManageLocationsActivity"
             android:exported="false"
             android:parentActivityName=".ui.SettingsActivity" />
+
+        <activity
+            android:name=".ui.PairDevicesActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MainActivity" />
+
+        <service
+            android:name=".sync.service.SyncForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
     </application>
 

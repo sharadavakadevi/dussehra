@@ -63,4 +63,18 @@
     <string name="pref_camera_path">కెమెరా ఫోల్డర్ / Camera Directory</string>
     <string name="storage_location_label">స్టోరేజ్ లొకేషన్: Pictures/Dussehra_2026/</string>
     <string name="storage_location_organized_label">స్టోరేజ్ లొకేషన్: Pictures/Dussehra_2026/[Devi_Folder]/[Location_Or_Date]/</string>
+
+    <!-- Wi-Fi Photo Sync -->
+    <string name="title_wifi_sync">వై-ఫై ఆటో సింక్ / Wi-Fi Photo Sync</string>
+    <string name="wifi_sync_desc">రెండు ఫోన్ల మధ్య ఆటోమేటిక్ గా కొత్త ఫోటోలను బదిలీ చేస్తుంది (Automatic P2P)</string>
+    <string name="btn_wifi_sync">వై-ఫై ఆటో సింక్ / Wi-Fi Auto-Sync</string>
+    <string name="this_device_label">ఈ ఫోన్ / This Phone</string>
+    <string name="paired_device_label">జతచేసిన ఫోన్ / Paired Phone</string>
+    <string name="pairing_pin_label">పెయిరింగ్ పిన్ / 6-Digit Pairing PIN</string>
+    <string name="btn_pair_device">మరో ఫోన్ తో జతచేయండి / Pair with Another Phone</string>
+    <string name="btn_unpair">జత విడదీయండి / Unpair</string>
+    <string name="btn_test_sync">సింక్ పరీక్షించండి / Test Wi-Fi Sync Now</string>
+    <string name="pref_auto_wifi_sync">ఆటోమేటిక్ వై-ఫై సింక్ (Background)</string>
+    <string name="pref_auto_wifi_sync_desc">రెండు ఫోన్లు ఒకే వై-ఫైకి కనెక్ట్ అయినప్పుడు కొత్త ఫోటోలను ఆటోమేటిక్ గా బదిలీ చేస్తుంది</string>
+    <string name="router_isolation_notice">⚠️ Router Notice: Both phones must be on the same local Wi-Fi or connected via Mobile Hotspot. If your Wi-Fi has \'AP Isolation\' / \'Client Isolation\' enabled, peer-to-peer transfers are blocked by the router. Connecting Phone B to Phone A\'s Mobile Hotspot bypasses router isolation completely.</string>
 </resources>

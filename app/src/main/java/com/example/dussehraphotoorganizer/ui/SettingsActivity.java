@@ -24,9 +24,12 @@ public class SettingsActivity extends AppCompatActivity {
 
     private MaterialSwitch switchAutoLocationOrganize;
     private MaterialSwitch switchAutoOrganize;
+    private MaterialSwitch switchAutoWifiSync;
     private MaterialSwitch switchIncludeVideos;
     private MaterialButton btnConfigureLocations;
+    private MaterialButton btnManagePairing;
     private LocalHistoryRepository historyRepository;
+    private com.example.dussehraphotoorganizer.sync.data.SyncLedgerRepository syncLedgerRepository;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,15 +40,32 @@ public class SettingsActivity extends AppCompatActivity {
         toolbar.setNavigationOnClickListener(v -> finish());
 
         historyRepository = new LocalHistoryRepository(this);
+        syncLedgerRepository = new com.example.dussehraphotoorganizer.sync.data.SyncLedgerRepository(this);
 
         switchAutoLocationOrganize = findViewById(R.id.switchAutoLocationOrganize);
         switchAutoOrganize = findViewById(R.id.switchAutoOrganize);
+        switchAutoWifiSync = findViewById(R.id.switchAutoWifiSync);
         switchIncludeVideos = findViewById(R.id.switchIncludeVideos);
         btnConfigureLocations = findViewById(R.id.btnConfigureLocations);
+        btnManagePairing = findViewById(R.id.btnManagePairing);
 
         switchAutoLocationOrganize.setChecked(historyRepository.isAutoLocationOrganizeEnabled());
         switchAutoOrganize.setChecked(historyRepository.isAutoOrganizeEnabled());
+        switchAutoWifiSync.setChecked(syncLedgerRepository.isAutoWifiSyncEnabled());
         switchIncludeVideos.setChecked(historyRepository.isIncludeVideos());
+
+        switchAutoWifiSync.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            syncLedgerRepository.setAutoWifiSyncEnabled(isChecked);
+            if (isChecked) {
+                com.example.dussehraphotoorganizer.sync.service.SyncTriggerManager.startSyncService(this);
+            }
+            Toast.makeText(this, isChecked ? "Wi-Fi auto-sync enabled." : "Wi-Fi auto-sync disabled.", Toast.LENGTH_SHORT).show();
+        });
+
+        btnManagePairing.setOnClickListener(v -> {
+            Intent intent = new Intent(SettingsActivity.this, PairDevicesActivity.class);
+            startActivity(intent);
+        });
 
         switchAutoLocationOrganize.setOnCheckedChangeListener((buttonView, isChecked) -> {
             historyRepository.setAutoLocationOrganizeEnabled(isChecked);

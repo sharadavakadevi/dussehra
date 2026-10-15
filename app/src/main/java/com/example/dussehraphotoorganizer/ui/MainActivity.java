@@ -36,6 +36,12 @@ public class MainActivity extends AppCompatActivity {
     private MaterialButton btnOrganizeLocation;
     private MaterialButton btnManageLocations;
 
+    // Wi-Fi Photo Sync Views
+    private TextView tvWifiSyncBadge;
+    private TextView tvWifiSyncStatus;
+    private MaterialButton btnWifiSync;
+    private com.example.dussehraphotoorganizer.sync.data.SyncLedgerRepository syncLedgerRepository;
+
     // Festival Organization Views
     private MaterialButton btnOrganizeExisting;
     private MaterialButton btnOrganizeNew;
@@ -54,11 +60,13 @@ public class MainActivity extends AppCompatActivity {
 
         schedule = new AlankaramSchedule(this);
         historyRepository = new LocalHistoryRepository(this);
+        syncLedgerRepository = new com.example.dussehraphotoorganizer.sync.data.SyncLedgerRepository(this);
         cameraObserver = new CameraPhotoContentObserver(this);
 
         initViews();
         setupClickListeners();
         checkPermissions();
+        com.example.dussehraphotoorganizer.sync.service.SyncTriggerManager.startSyncService(this);
     }
 
     @Override
@@ -94,6 +102,10 @@ public class MainActivity extends AppCompatActivity {
         btnOrganizeLocation = findViewById(R.id.btnOrganizeLocation);
         btnManageLocations = findViewById(R.id.btnManageLocations);
 
+        tvWifiSyncBadge = findViewById(R.id.tvWifiSyncBadge);
+        tvWifiSyncStatus = findViewById(R.id.tvWifiSyncStatus);
+        btnWifiSync = findViewById(R.id.btnWifiSync);
+
         btnOrganizeExisting = findViewById(R.id.btnOrganizeExisting);
         btnOrganizeNew = findViewById(R.id.btnOrganizeNew);
         btnFestivalSchedule = findViewById(R.id.btnFestivalSchedule);
@@ -102,6 +114,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateDashboardInfo() {
+        // Wi-Fi Photo Sync Dashboard Update
+        if (syncLedgerRepository.isPaired()) {
+            tvWifiSyncBadge.setText("PAIRED & READY");
+            tvWifiSyncBadge.setBackgroundColor(getColor(R.color.status_success));
+            int sent = syncLedgerRepository.getOutgoingSyncedCount();
+            int recv = syncLedgerRepository.getIncomingReceivedCount();
+            tvWifiSyncStatus.setText(String.format("Paired with: %s • Synced: %d Sent, %d Received",
+                    syncLedgerRepository.getPairedDeviceName(), sent, recv));
+        } else {
+            tvWifiSyncBadge.setText("UNPAIRED");
+            tvWifiSyncBadge.setBackgroundColor(getColor(R.color.maroon_kumkum));
+            tvWifiSyncStatus.setText("Tap to pair with your other phone for automatic Wi-Fi photo sync");
+        }
+
         // Location Dashboard Update
         String lastLocSummary = historyRepository.getLastLocationRunSummary();
         if (lastLocSummary != null && !lastLocSummary.isEmpty()) {
@@ -143,6 +169,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupClickListeners() {
+        btnWifiSync.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, PairDevicesActivity.class);
+            startActivity(intent);
+        });
+
         btnOrganizeLocation.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, OrganizePhotosActivity.class);
             intent.putExtra(OrganizePhotosActivity.EXTRA_MODE, OrganizePhotosActivity.MODE_LOCATION);

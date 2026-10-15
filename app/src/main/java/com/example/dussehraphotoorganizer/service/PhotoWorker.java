@@ -10,11 +10,13 @@ import com.example.dussehraphotoorganizer.organizer.LocationPhotoOrganizer;
 import com.example.dussehraphotoorganizer.organizer.PhotoOrganizer;
 import com.example.dussehraphotoorganizer.scanner.LocationPhotoScanner;
 import com.example.dussehraphotoorganizer.scanner.PhotoScanner;
+import com.example.dussehraphotoorganizer.sync.service.SyncTriggerManager;
 
 /**
  * Background worker that respects Android background execution limits.
  * Automatically organizes new eligible camera photos into Location folders
- * and Festival folders without requiring repetitive manual user confirmation.
+ * and Festival folders without requiring repetitive manual user confirmation,
+ * and synchronizes new photos with paired phone over Wi-Fi.
  */
 public class PhotoWorker extends Worker {
 
@@ -50,6 +52,9 @@ public class PhotoWorker extends Worker {
                     festivalOrganizer.copyPhotosToFestivalFolders(festivalResult.eligiblePhotos, null);
                 }
             }
+
+            // 3. Automatic Two-Way Wi-Fi Synchronization between paired phones
+            SyncTriggerManager.triggerSync(context);
 
             return Result.success();
         } catch (Exception e) {

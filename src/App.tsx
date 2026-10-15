@@ -7,6 +7,7 @@ import { GalleryView } from './components/GalleryView';
 import { ManageLocationsModal } from './components/ManageLocationsModal';
 import { SettingsModal } from './components/SettingsModal';
 import { ApkDownloadModal } from './components/ApkDownloadModal';
+import { WifiSyncModal } from './components/WifiSyncModal';
 
 import { DEFAULT_FESTIVAL_SCHEDULE } from './data/defaultSchedule';
 import { DEFAULT_LOCATIONS } from './data/defaultLocations';
@@ -24,7 +25,9 @@ import {
   FolderCheck,
   CheckCircle2,
   ShieldCheck,
-  Info
+  Info,
+  Wifi,
+  ArrowLeftRight
 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -55,6 +58,7 @@ export const App: React.FC = () => {
   const [isLocationsModalOpen, setIsLocationsModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isApkModalOpen, setIsApkModalOpen] = useState(false);
+  const [isWifiSyncModalOpen, setIsWifiSyncModalOpen] = useState(false);
   const [galleryInitialFolder, setGalleryInitialFolder] = useState<string | null>(null);
 
   // Save to localStorage
@@ -102,6 +106,7 @@ export const App: React.FC = () => {
         onOpenSettings={() => setIsSettingsModalOpen(true)}
         onOpenLocations={() => setIsLocationsModalOpen(true)}
         onOpenDownload={() => setIsApkModalOpen(true)}
+        onOpenWifiSync={() => setIsWifiSyncModalOpen(true)}
       />
 
       {/* Main Body */}
@@ -175,6 +180,41 @@ export const App: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Automatic Two-Way Wi-Fi Sync Card */}
+            <div className="bg-gradient-to-r from-emerald-950 via-stone-900 to-[#4A000E] text-white rounded-2xl p-6 shadow-md border-2 border-emerald-400/40 relative overflow-hidden">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+                <div className="space-y-1.5 max-w-2xl">
+                  <div className="flex items-center space-x-2">
+                    <Wifi className="w-6 h-6 text-emerald-400" />
+                    <h2 className="text-xl sm:text-2xl font-bold font-serif-temple text-amber-100">
+                      Automatic Two-Way Wi-Fi Photo Sync
+                    </h2>
+                    <span className="text-[10px] font-bold text-emerald-300 bg-emerald-500/20 px-2.5 py-0.5 rounded-full border border-emerald-400/40 font-mono">
+                      P2P ACTIVE
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-amber-200/90 font-telugu">
+                    రెండు ఫోన్ల మధ్య ఆటోమేటిక్ గా కొత్త ఫోటోలను సమకాలీకరించండి — బటన్ నొక్కాల్సిన అవసరం లేదు.
+                  </p>
+
+                  <p className="text-xs text-stone-300">
+                    Transfers camera photos automatically between paired phones over local Wi-Fi. Saves into exact Dussehra Devi &amp; Location folders with SHA-256 duplicate protection.
+                  </p>
+                </div>
+
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => setIsWifiSyncModalOpen(true)}
+                    className="bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-bold px-5 py-3 rounded-xl text-xs flex items-center space-x-2 shadow-lg transition-all hover:scale-102 cursor-pointer"
+                  >
+                    <ArrowLeftRight className="w-4 h-4" />
+                    <span>Manage Wi-Fi Sync &amp; Pairing</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -316,6 +356,12 @@ export const App: React.FC = () => {
       <ApkDownloadModal
         isOpen={isApkModalOpen}
         onClose={() => setIsApkModalOpen(false)}
+      />
+
+      <WifiSyncModal
+        isOpen={isWifiSyncModalOpen}
+        onClose={() => setIsWifiSyncModalOpen(false)}
+        onPhotosOrganized={handlePhotosOrganized}
       />
 
     </div>

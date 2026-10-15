@@ -1,5 +1,5 @@
 import React from 'react';
-import { Camera, MapPin, Calendar, Image as ImageIcon, Settings, Download } from 'lucide-react';
+import { Camera, MapPin, Calendar, Image as ImageIcon, Settings, Download, Wifi } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: 'dashboard' | 'location' | 'festival' | 'gallery';
@@ -7,6 +7,7 @@ interface HeaderProps {
   onOpenSettings: () => void;
   onOpenLocations: () => void;
   onOpenDownload: () => void;
+  onOpenWifiSync: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -15,6 +16,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onOpenLocations,
   onOpenDownload,
+  onOpenWifiSync,
 }) => {
   return (
     <header className="bg-gradient-to-r from-[#D94F00] via-[#C93B00] to-[#8C0000] text-white shadow-lg sticky top-0 z-30 border-b-2 border-amber-400">
@@ -100,6 +102,15 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <MapPin className="w-4 h-4 text-amber-300" />
               <span className="hidden lg:inline">Locations</span>
+            </button>
+
+            <button
+              onClick={onOpenWifiSync}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-3 py-1.5 rounded-lg text-xs flex items-center space-x-1.5 shadow transition-all hover:scale-102"
+              title="Automatic Wi-Fi Photo Sync"
+            >
+              <Wifi className="w-4 h-4" />
+              <span>Wi-Fi Sync</span>
             </button>
 
             <button

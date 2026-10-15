@@ -142,6 +142,93 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Automatic Wi-Fi Photo Sync Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardWifiSync"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeColor="@color/gold_turmeric"
+                app:strokeWidth="1.2dp"
+                app:cardBackgroundColor="@color/cream_surface"
+                android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="wrap_content"
+                            android:text="@string/title_wifi_sync"
+                            android:textSize="17sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/maroon_kumkum" />
+
+                        <TextView
+                            android:id="@+id/tvWifiSyncBadge"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="P2P SYNC"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/white"
+                            android:background="@color/status_success"
+                            android:paddingHorizontal="8dp"
+                            android:paddingVertical="3dp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvWifiSyncSubtitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/wifi_sync_desc"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_secondary"
+                        android:layout_marginTop="4dp" />
+
+                    <TextView
+                        android:id="@+id/tvWifiSyncStatus"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Status: Ready to sync with paired phone"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_saffron_dark"
+                        android:layout_marginTop="6dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="12dp">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnWifiSync"
+                            android:layout_width="match_parent"
+                            android:layout_height="50dp"
+                            android:text="@string/btn_wifi_sync"
+                            android:textSize="13sp"
+                            app:cornerRadius="10dp"
+                            android:backgroundTint="@color/maroon_kumkum"
+                            android:textColor="@color/white"
+                            app:icon="@android:drawable/stat_notify_sync"
+                            app:iconGravity="textStart" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- Today's Devi Alankaram Card (Dussehra Festival) -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardTodayAlankaram"

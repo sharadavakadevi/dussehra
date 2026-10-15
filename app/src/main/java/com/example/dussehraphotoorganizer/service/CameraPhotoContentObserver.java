@@ -11,6 +11,7 @@ import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkManager;
 
 import com.example.dussehraphotoorganizer.data.LocalHistoryRepository;
+import com.example.dussehraphotoorganizer.sync.service.SyncTriggerManager;
 
 /**
  * CameraPhotoContentObserver monitors MediaStore for new camera captures in real-time.
@@ -33,10 +34,6 @@ public class CameraPhotoContentObserver extends ContentObserver {
     public void onChange(boolean selfChange, Uri uri) {
         super.onChange(selfChange, uri);
 
-        if (!historyRepository.isAutoLocationOrganizeEnabled() && !historyRepository.isAutoOrganizeEnabled()) {
-            return;
-        }
-
         // Debounce rapid camera shutter bursts (within 2 seconds)
         long now = System.currentTimeMillis();
         if (now - lastTriggerTime < 2000) {
@@ -44,15 +41,20 @@ public class CameraPhotoContentObserver extends ContentObserver {
         }
         lastTriggerTime = now;
 
-        // Enqueue WorkManager one-time task
-        OneTimeWorkRequest workRequest = new OneTimeWorkRequest.Builder(PhotoWorker.class)
-                .addTag("camera_observer_work")
-                .build();
+        // 1. Automatic local photo organization (Location & Festival)
+        if (historyRepository.isAutoLocationOrganizeEnabled() || historyRepository.isAutoOrganizeEnabled()) {
+            OneTimeWorkRequest workRequest = new OneTimeWorkRequest.Builder(PhotoWorker.class)
+                    .addTag("camera_observer_work")
+                    .build();
 
-        WorkManager.getInstance(context).enqueueUniqueWork(
-                "work_camera_capture_event",
-                ExistingWorkPolicy.REPLACE,
-                workRequest
-        );
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                    "work_camera_capture_event",
+                    ExistingWorkPolicy.REPLACE,
+                    workRequest
+            );
+        }
+
+        // 2. Automatic Two-Way Wi-Fi Synchronization between paired phones
+        SyncTriggerManager.triggerSync(context);
     }
 }
