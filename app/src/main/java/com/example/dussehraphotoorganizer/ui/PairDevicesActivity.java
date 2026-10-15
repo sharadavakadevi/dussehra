@@ -81,6 +81,7 @@ public class PairDevicesActivity extends AppCompatActivity {
 
         syncEngine = SyncEngine.getInstance(this);
         ledgerRepository = syncEngine.getLedgerRepository();
+        ledgerRepository.ensureSyncBaselineTimestamp();
 
         initViews();
         setupRecyclerView();

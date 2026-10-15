@@ -13,6 +13,7 @@ import androidx.exifinterface.media.ExifInterface;
 
 import com.example.dussehraphotoorganizer.data.LocalHistoryRepository;
 import com.example.dussehraphotoorganizer.location.LocationConfigManager;
+import com.example.dussehraphotoorganizer.model.FestivalDateItem;
 import com.example.dussehraphotoorganizer.schedule.AlankaramSchedule;
 import com.example.dussehraphotoorganizer.sync.data.SyncLedgerRepository;
 import com.example.dussehraphotoorganizer.sync.net.SyncPacket;
@@ -22,16 +23,18 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Locale;
 
 /**
  * Saves received photos into the exact Dussehra destination folder hierarchy:
  * Pictures/Dussehra_2026/[Devi_Folder]/[Location_Or_Date_Folder]/[FileName]
  *
- * Enforces:
- * 1. Matching using original capture date and GPS metadata from the source photo.
- * 2. Never uses receiving phone's current GPS location.
- * 3. Fallback to YYYY-MM-DD under appropriate Devi folder when GPS is missing or ambiguous.
- * 4. Preserves EXIF metadata on the copied photo.
+ * Strict Validation and Rules:
+ * 1. Validates that the received item is a valid camera photo and not a WhatsApp, screenshot, or download item.
+ * 2. Validates that the capture date strictly matches an official 2026 Dussehra festival date.
+ * 3. Never guesses location using receiving phone's current GPS; relies entirely on source photo's EXIF metadata.
+ * 4. Preserves the date-based fallback (YYYY-MM-DD) under the appropriate Devi folder when GPS is missing or ambiguous.
+ * 5. Records the SHA-256 in the ledger so the receiving phone never retransmits the saved photo back.
  */
 public class PhotoDestinationSaver {
 
@@ -39,12 +42,14 @@ public class PhotoDestinationSaver {
 
     private final Context context;
     private final LocationConfigManager locationConfigManager;
+    private final AlankaramSchedule alankaramSchedule;
     private final LocalHistoryRepository historyRepository;
     private final SyncLedgerRepository syncLedgerRepository;
 
     public PhotoDestinationSaver(Context context, SyncLedgerRepository syncLedgerRepository) {
         this.context = context.getApplicationContext();
         this.locationConfigManager = new LocationConfigManager(this.context);
+        this.alankaramSchedule = new AlankaramSchedule(this.context);
         this.historyRepository = new LocalHistoryRepository(this.context);
         this.syncLedgerRepository = syncLedgerRepository;
     }
@@ -54,7 +59,39 @@ public class PhotoDestinationSaver {
             return false;
         }
 
-        // 1. Evaluate Destination path strictly using source metadata
+        String displayName = header.fileName;
+        if (displayName == null || displayName.trim().isEmpty()) {
+            displayName = "IMG_SYNC_" + System.currentTimeMillis() + ".jpg";
+        }
+
+        // 1. Strict defense-in-depth: Reject non-camera patterns in filename
+        String nameLower = displayName.toLowerCase(Locale.US);
+        if (nameLower.contains("whatsapp") || (nameLower.startsWith("img-") && nameLower.contains("-wa"))
+                || nameLower.contains("screenshot") || nameLower.startsWith("screencapture")
+                || nameLower.contains("download") || nameLower.contains("downloaded")
+                || nameLower.contains("telegram") || nameLower.contains("facebook")
+                || nameLower.contains("instagram")) {
+            Log.w(TAG, "Rejected received item: Non-camera pattern in filename -> " + displayName);
+            syncLedgerRepository.addLogEntry(displayName, "RECEIVED", "REJECTED", "Excluded: Non-camera media");
+            return false;
+        }
+
+        // 2. Strict validation: Must have a valid capture timestamp and date
+        if (header.captureTimestamp <= 0 || header.formattedDate == null || header.formattedDate.trim().isEmpty()) {
+            Log.w(TAG, "Rejected received item: Missing EXIF capture date -> " + displayName);
+            syncLedgerRepository.addLogEntry(displayName, "RECEIVED", "REJECTED", "Excluded: Missing EXIF capture date");
+            return false;
+        }
+
+        // 3. Strict validation: Must match configured Dussehra 2026 festival date
+        FestivalDateItem matchedFestival = alankaramSchedule.getFestivalDateItem(header.formattedDate);
+        if (matchedFestival == null) {
+            Log.w(TAG, "Rejected received item: Date outside Dussehra schedule (" + header.formattedDate + ") -> " + displayName);
+            syncLedgerRepository.addLogEntry(displayName, "RECEIVED", "REJECTED", "Excluded: Date " + header.formattedDate + " outside Dussehra schedule");
+            return false;
+        }
+
+        // 4. Evaluate destination path strictly using source photo's EXIF metadata
         LocationConfigManager.EvaluationResult eval = locationConfigManager.evaluatePhotoDestination(
                 header.latitude,
                 header.longitude,
@@ -62,12 +99,10 @@ public class PhotoDestinationSaver {
                 header.isoDate
         );
 
-        String subfolder = eval.deviParentFolder + "/" + eval.locationSubfolder;
+        // Subfolder path under Pictures/Dussehra_2026/
+        // e.g. "Sri_Gayatri_Devi/Home" or "Sri_Gayatri_Devi/2026-10-12"
+        String subfolder = matchedFestival.getFolderName() + "/" + eval.locationSubfolder;
         String relativeFolderPath = Environment.DIRECTORY_PICTURES + "/" + AlankaramSchedule.MAIN_FOLDER_NAME + "/" + subfolder + "/";
-        String displayName = header.fileName;
-        if (displayName == null || displayName.trim().isEmpty()) {
-            displayName = "IMG_SYNC_" + System.currentTimeMillis() + ".jpg";
-        }
 
         ContentResolver resolver = context.getContentResolver();
         boolean saved = false;
@@ -147,10 +182,11 @@ public class PhotoDestinationSaver {
             }
 
             if (saved) {
-                // Record in Sync Ledger and Local History so it's recognized as organized
+                // Record in Sync Ledger and Local History:
+                // Prevents endless retransmission loops and duplicate files
                 syncLedgerRepository.recordIncomingPhotoReceived(header.sha256);
                 historyRepository.recordProcessedPhotoForLocation(0, displayName, header.fileSize);
-                syncLedgerRepository.addLogEntry(displayName, "RECEIVED", "SUCCESS", "Saved to " + subfolder);
+                syncLedgerRepository.addLogEntry(displayName, "RECEIVED", "SUCCESS", "Organized into " + subfolder);
                 Log.d(TAG, "Successfully organized received photo: " + displayName + " -> " + subfolder);
             }
 

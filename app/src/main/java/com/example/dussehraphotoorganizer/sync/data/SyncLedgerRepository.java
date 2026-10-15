@@ -47,6 +47,7 @@ public class SyncLedgerRepository {
     // Activity Log & Preferences
     private static final String KEY_SYNC_LOGS_JSON = "key_sync_logs_json";
     private static final String KEY_AUTO_WIFI_SYNC_ENABLED = "key_auto_wifi_sync_enabled";
+    private static final String KEY_SYNC_BASELINE_TIMESTAMP = "key_sync_baseline_timestamp";
 
     private final SharedPreferences prefs;
     private final Gson gson;
@@ -152,13 +153,37 @@ public class SyncLedgerRepository {
     }
 
     public synchronized void savePairing(String pairedDeviceId, String pairedDeviceName, String sharedSecret, String ip) {
+        long currentBaseline = prefs.getLong(KEY_SYNC_BASELINE_TIMESTAMP, 0);
+        if (currentBaseline == 0) {
+            currentBaseline = System.currentTimeMillis();
+        }
         prefs.edit()
                 .putBoolean(KEY_IS_PAIRED, true)
                 .putString(KEY_PAIRED_DEVICE_ID, pairedDeviceId)
                 .putString(KEY_PAIRED_DEVICE_NAME, pairedDeviceName)
                 .putString(KEY_SHARED_SECRET, sharedSecret)
                 .putString(KEY_LAST_KNOWN_IP, ip != null ? ip : "")
+                .putLong(KEY_SYNC_BASELINE_TIMESTAMP, currentBaseline)
                 .apply();
+    }
+
+    public long getSyncBaselineTimestamp() {
+        return prefs.getLong(KEY_SYNC_BASELINE_TIMESTAMP, 0);
+    }
+
+    public void setSyncBaselineTimestamp(long timestamp) {
+        prefs.edit().putLong(KEY_SYNC_BASELINE_TIMESTAMP, timestamp).apply();
+    }
+
+    public void ensureSyncBaselineTimestamp() {
+        if (prefs.getLong(KEY_SYNC_BASELINE_TIMESTAMP, 0) == 0) {
+            prefs.edit().putLong(KEY_SYNC_BASELINE_TIMESTAMP, System.currentTimeMillis()).apply();
+        }
+    }
+
+    public boolean isPhotoNewerThanBaseline(long captureTimestamp) {
+        long baseline = getSyncBaselineTimestamp();
+        return baseline == 0 || captureTimestamp >= baseline;
     }
 
     public synchronized void unpair() {

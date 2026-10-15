@@ -10,20 +10,29 @@ import android.provider.MediaStore;
 import android.util.Log;
 
 import com.example.dussehraphotoorganizer.data.LocalHistoryRepository;
+import com.example.dussehraphotoorganizer.location.LocationConfigManager;
+import com.example.dussehraphotoorganizer.model.FestivalDateItem;
 import com.example.dussehraphotoorganizer.scanner.PhotoMetadataReader;
+import com.example.dussehraphotoorganizer.schedule.AlankaramSchedule;
 import com.example.dussehraphotoorganizer.sync.crypto.SyncCryptoUtil;
 import com.example.dussehraphotoorganizer.sync.data.SyncLedgerRepository;
 import com.example.dussehraphotoorganizer.sync.net.SyncPacket;
 
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Scans local camera photos and produces the catalog of photos available for synchronization.
- * Caches calculated SHA-256 hashes by Media ID + Size + Timestamp to ensure near-instant scans.
+ * Strict Dussehra Camera Photo Scanner:
+ * 
+ * Scans ONLY authentic camera photos that strictly qualify for the Dussehra Photo Organizer:
+ * 1. Strictly camera captures only (DCIM/Camera) — rejects WhatsApp, screenshots, downloads, social media.
+ * 2. New photos only — excludes old gallery images captured before sync was configured.
+ * 3. Valid original EXIF capture date — skips ambiguous/missing dates and records for review.
+ * 4. Configured Dussehra 2026 Festival date match — rejects photos taken on non-festival dates.
+ * 5. Applies location and date fallback rules under the appropriate Devi folder.
+ * 6. Prevents duplicate transmissions and retransmission loops via persistent SHA-256 ledger.
  */
 public class SyncCatalogScanner {
 
@@ -34,6 +43,8 @@ public class SyncCatalogScanner {
     private final PhotoMetadataReader metadataReader;
     private final LocalHistoryRepository historyRepository;
     private final SyncLedgerRepository syncLedgerRepository;
+    private final AlankaramSchedule alankaramSchedule;
+    private final LocationConfigManager locationConfigManager;
     private final SharedPreferences hashCachePrefs;
 
     public SyncCatalogScanner(Context context, SyncLedgerRepository syncLedgerRepository) {
@@ -41,11 +52,14 @@ public class SyncCatalogScanner {
         this.metadataReader = new PhotoMetadataReader(this.context);
         this.historyRepository = new LocalHistoryRepository(this.context);
         this.syncLedgerRepository = syncLedgerRepository;
+        this.alankaramSchedule = new AlankaramSchedule(this.context);
+        this.locationConfigManager = new LocationConfigManager(this.context);
         this.hashCachePrefs = this.context.getSharedPreferences(PREF_HASH_CACHE, Context.MODE_PRIVATE);
     }
 
     public List<SyncPacket.PhotoCatalogItem> scanLocalCameraPhotos() {
         List<SyncPacket.PhotoCatalogItem> catalog = new ArrayList<>();
+        long baselineTimestamp = syncLedgerRepository.getSyncBaselineTimestamp();
 
         String[] projection;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -96,14 +110,59 @@ public class SyncCatalogScanner {
                     long size = cursor.getLong(sizeCol);
                     long dateMod = cursor.getLong(modCol);
 
-                    // 1. Strict authentic camera check
+                    // 1. Strict authentic camera check:
+                    // Excludes WhatsApp media, Screenshots, Browser downloads, Social media (FB, IG, Telegram),
+                    // and photos already inside organized Dussehra folders.
                     if (!metadataReader.isAuthenticCameraPhoto(path, displayName, customCameraPath)) {
+                        continue;
+                    }
+
+                    // 2. New photos only:
+                    // Exclude older gallery photos taken prior to synchronization setup.
+                    if (baselineTimestamp > 0 && dateTaken > 0 && dateTaken < baselineTimestamp) {
                         continue;
                     }
 
                     Uri contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
 
-                    // 2. Resolve SHA-256 from cache or compute
+                    // 3. Extract Full EXIF Metadata (capture timestamp & GPS)
+                    PhotoMetadataReader.PhotoFullMetadata meta = metadataReader.extractFullMetadata(contentUri, dateTaken);
+
+                    // If EXIF capture date is missing or unreadable:
+                    // Do NOT guess or send indiscriminately; record for review and skip automatic transfer.
+                    if (!meta.hasValidCaptureDate()) {
+                        syncLedgerRepository.addLogEntry(
+                                displayName != null ? displayName : "Unknown",
+                                "SKIPPED",
+                                "REVIEW_NEEDED",
+                                "Missing EXIF capture date (Skipped - Needs Review)"
+                        );
+                        continue;
+                    }
+
+                    // Secondary baseline check against true EXIF timestamp
+                    if (baselineTimestamp > 0 && meta.timestamp > 0 && meta.timestamp < baselineTimestamp) {
+                        continue;
+                    }
+
+                    // 4. Strict Dussehra Festival Date check:
+                    // MUST match one of the 11 official configured Dussehra 2026 festival dates.
+                    FestivalDateItem matchedFestival = alankaramSchedule.getFestivalDateItem(meta.formattedDate);
+                    if (matchedFestival == null) {
+                        // Camera photo captured on a non-festival date (e.g. daily/unrelated photo).
+                        // Strictly excluded from Dussehra Wi-Fi synchronization.
+                        continue;
+                    }
+
+                    // 5. Evaluate destination (Devi parent folder & location alias or date fallback)
+                    LocationConfigManager.EvaluationResult eval = locationConfigManager.evaluatePhotoDestination(
+                            meta.latitude,
+                            meta.longitude,
+                            meta.formattedDate,
+                            meta.isoFormattedDate
+                    );
+
+                    // 6. Resolve or compute SHA-256 content hash
                     String cacheKey = id + "_" + size + "_" + dateMod;
                     String sha256 = hashCachePrefs.getString(cacheKey, null);
 
@@ -122,9 +181,13 @@ public class SyncCatalogScanner {
                         continue;
                     }
 
-                    // 3. Extract EXIF details
-                    PhotoMetadataReader.PhotoFullMetadata meta = metadataReader.extractFullMetadata(contentUri, dateTaken);
+                    // 7. Duplicate Prevention & Loop Elimination:
+                    // If this photo was already synced or received, skip it.
+                    if (syncLedgerRepository.isHashAlreadySyncedOrReceived(sha256)) {
+                        continue;
+                    }
 
+                    // Photo strictly qualifies! Add to eligible catalog.
                     SyncPacket.PhotoCatalogItem item = new SyncPacket.PhotoCatalogItem(
                             sha256,
                             displayName,
@@ -140,7 +203,7 @@ public class SyncCatalogScanner {
                 }
             }
         } catch (Exception e) {
-            Log.e(TAG, "Error scanning local photos for sync: " + e.getMessage());
+            Log.e(TAG, "Error scanning local Dussehra photos for sync: " + e.getMessage());
         }
 
         return catalog;

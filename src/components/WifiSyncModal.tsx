@@ -89,7 +89,7 @@ export const WifiSyncModal: React.FC<WifiSyncModalProps> = ({
         fileName: newFileName,
         direction: 'SENT',
         status: 'SUCCESS',
-        details: `Auto-transferred to ${pairedDeviceName} over local Wi-Fi`
+        details: `Eligible Dussehra photo (Sri Kathyayani Devi) auto-transferred to ${pairedDeviceName}`
       };
 
       setLogs((prev) => [newLog, ...prev]);
@@ -98,7 +98,68 @@ export const WifiSyncModal: React.FC<WifiSyncModalProps> = ({
       setSyncStatus('SUCCESS');
 
       setTimeout(() => setSyncStatus('IDLE'), 2500);
-    }, 1200);
+    }, 1000);
+  };
+
+  const handleSimulateExcludedImage = (type: 'whatsapp' | 'screenshot' | 'old' | 'non_festival') => {
+    setSyncStatus('SYNCING');
+    setTimeout(() => {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      let fileName = '';
+      let details = '';
+
+      if (type === 'whatsapp') {
+        fileName = `IMG-20261014-WA${Math.floor(1000 + Math.random() * 9000)}.jpg`;
+        details = 'BLOCKED before queue: WhatsApp media strictly excluded from Dussehra sync';
+      } else if (type === 'screenshot') {
+        fileName = `Screenshot_20261014-103000.png`;
+        details = 'BLOCKED before queue: Screenshot media strictly excluded from sync';
+      } else if (type === 'old') {
+        fileName = `IMG_20250915_142010.jpg`;
+        details = 'BLOCKED before queue: Old photo captured prior to sync setup baseline';
+      } else {
+        fileName = `IMG_20260810_110000.jpg`;
+        details = 'BLOCKED before queue: Capture date outside configured Dussehra 2026 schedule';
+      }
+
+      const newLog: SyncLog = {
+        id: String(Date.now()),
+        time: timeStr,
+        fileName,
+        direction: 'SENT',
+        status: 'FAILED',
+        details
+      };
+
+      setLogs((prev) => [newLog, ...prev]);
+      setSyncStatus('IDLE');
+    }, 600);
+  };
+
+  const handleSimulateMissingGpsPhoto = () => {
+    setSyncStatus('SYNCING');
+    setTimeout(() => {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const newFileName = `IMG_20261012_${Math.floor(100000 + Math.random() * 900000)}.jpg`;
+
+      const newLog: SyncLog = {
+        id: String(Date.now()),
+        time: timeStr,
+        fileName: newFileName,
+        direction: 'RECEIVED',
+        status: 'SUCCESS',
+        details: 'Eligible (Missing GPS) -> Saved into fallback: Sri_Gayatri_Devi/2026-10-12/'
+      };
+
+      setLogs((prev) => [newLog, ...prev]);
+      setReceivedCount((c) => c + 1);
+      setLastSyncTime(timeStr);
+      setSyncStatus('SUCCESS');
+
+      setTimeout(() => setSyncStatus('IDLE'), 2500);
+    }, 1000);
   };
 
   const handleSimulateIncomingPhoto = () => {
@@ -114,7 +175,7 @@ export const WifiSyncModal: React.FC<WifiSyncModalProps> = ({
         fileName: newFileName,
         direction: 'RECEIVED',
         status: 'SUCCESS',
-        details: 'Received from paired phone & saved into Sri_Lalitha_Tripura_Sundari_Devi/Yeendda_Durga_Devi_Temple/'
+        details: 'Received & organized into Sri_Lalitha_Tripura_Sundari_Devi/Yeendda_Durga_Devi_Temple/'
       };
 
       setLogs((prev) => [newLog, ...prev]);
@@ -123,7 +184,7 @@ export const WifiSyncModal: React.FC<WifiSyncModalProps> = ({
       setSyncStatus('SUCCESS');
 
       setTimeout(() => setSyncStatus('IDLE'), 2500);
-    }, 1200);
+    }, 1000);
   };
 
   const handleRegeneratePin = () => {
@@ -298,24 +359,69 @@ export const WifiSyncModal: React.FC<WifiSyncModalProps> = ({
             </div>
 
             {/* Simulation Triggers */}
-            <div className="mt-4 pt-3 border-t border-stone-200 flex flex-wrap gap-2">
-              <button
-                onClick={handleSimulateNewPhotoCapture}
-                disabled={syncStatus === 'SYNCING'}
-                className="flex-1 min-w-[200px] flex items-center justify-center space-x-1.5 py-2.5 px-3 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>Simulate Camera Photo (Send)</span>
-              </button>
+            <div className="mt-4 pt-3 border-t border-stone-200">
+              <p className="text-[11px] font-bold text-stone-600 mb-2 uppercase tracking-wide">
+                Strict Dussehra Filter Simulator:
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  onClick={handleSimulateNewPhotoCapture}
+                  disabled={syncStatus === 'SYNCING'}
+                  className="flex items-center justify-center space-x-1.5 py-2 px-3 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all text-left"
+                >
+                  <Send className="w-3.5 h-3.5 shrink-0" />
+                  <span>Eligible Dussehra Photo (Send)</span>
+                </button>
 
-              <button
-                onClick={handleSimulateIncomingPhoto}
-                disabled={syncStatus === 'SYNCING'}
-                className="flex-1 min-w-[200px] flex items-center justify-center space-x-1.5 py-2.5 px-3 bg-stone-800 hover:bg-stone-900 text-white text-xs font-bold rounded-lg shadow-sm transition-all"
-              >
-                <DownloadCloud className="w-3.5 h-3.5" />
-                <span>Simulate Remote Photo (Receive)</span>
-              </button>
+                <button
+                  onClick={handleSimulateIncomingPhoto}
+                  disabled={syncStatus === 'SYNCING'}
+                  className="flex items-center justify-center space-x-1.5 py-2 px-3 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg shadow-sm transition-all text-left"
+                >
+                  <DownloadCloud className="w-3.5 h-3.5 shrink-0" />
+                  <span>Eligible Dussehra Photo (Receive)</span>
+                </button>
+
+                <button
+                  onClick={handleSimulateMissingGpsPhoto}
+                  disabled={syncStatus === 'SYNCING'}
+                  className="flex items-center justify-center space-x-1.5 py-2 px-3 bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-bold rounded-lg shadow-sm transition-all text-left"
+                >
+                  <span>Eligible (Missing GPS Fallback)</span>
+                </button>
+
+                <button
+                  onClick={() => handleSimulateExcludedImage('whatsapp')}
+                  disabled={syncStatus === 'SYNCING'}
+                  className="flex items-center justify-center space-x-1.5 py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 text-xs font-semibold rounded-lg shadow-sm transition-all text-left"
+                >
+                  <span>Test WhatsApp Image (Blocked)</span>
+                </button>
+
+                <button
+                  onClick={() => handleSimulateExcludedImage('screenshot')}
+                  disabled={syncStatus === 'SYNCING'}
+                  className="flex items-center justify-center space-x-1.5 py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 text-xs font-semibold rounded-lg shadow-sm transition-all text-left"
+                >
+                  <span>Test Screenshot (Blocked)</span>
+                </button>
+
+                <button
+                  onClick={() => handleSimulateExcludedImage('old')}
+                  disabled={syncStatus === 'SYNCING'}
+                  className="flex items-center justify-center space-x-1.5 py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 text-xs font-semibold rounded-lg shadow-sm transition-all text-left"
+                >
+                  <span>Test Pre-Sync Old Photo (Blocked)</span>
+                </button>
+
+                <button
+                  onClick={() => handleSimulateExcludedImage('non_festival')}
+                  disabled={syncStatus === 'SYNCING'}
+                  className="sm:col-span-2 flex items-center justify-center space-x-1.5 py-2 px-3 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-semibold rounded-lg shadow-sm transition-all text-left"
+                >
+                  <span>Test Non-Festival Date Photo (Blocked: Outside Dussehra Schedule)</span>
+                </button>
+              </div>
             </div>
           </div>
 

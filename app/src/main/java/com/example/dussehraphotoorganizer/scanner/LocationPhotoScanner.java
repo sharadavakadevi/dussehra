@@ -32,6 +32,7 @@ public class LocationPhotoScanner {
     private final LocationConfigManager locationConfigManager;
     private final PhotoMetadataReader metadataReader;
     private final LocalHistoryRepository historyRepository;
+    private final AlankaramSchedule schedule;
 
     public interface ScanProgressListener {
         void onProgress(int scannedCount, int matchingCount);
@@ -42,6 +43,7 @@ public class LocationPhotoScanner {
         this.locationConfigManager = new LocationConfigManager(context);
         this.metadataReader = new PhotoMetadataReader(context);
         this.historyRepository = new LocalHistoryRepository(context);
+        this.schedule = new AlankaramSchedule(context);
     }
 
     public LocationScanResult scanCameraPhotos(ScanProgressListener listener) {
@@ -124,7 +126,14 @@ public class LocationPhotoScanner {
                         continue;
                     }
 
-                    // 4. Evaluate Destination path under Pictures/Dussehra_2026/
+                    // 4. Strict Dussehra Festival Date Check
+                    FestivalDateItem matchedFestival = schedule.getFestivalDateItem(meta.formattedDate);
+                    if (matchedFestival == null) {
+                        skippedCount++;
+                        continue;
+                    }
+
+                    // 5. Evaluate Destination path under Pictures/Dussehra_2026/
                     LocationConfigManager.EvaluationResult eval = locationConfigManager.evaluatePhotoDestination(
                             meta.latitude,
                             meta.longitude,
@@ -133,7 +142,7 @@ public class LocationPhotoScanner {
                     );
 
                     // Destination subpath: e.g. "Sri_Gayatri_Devi/Home" or "Sri_Gayatri_Devi/2026-10-12"
-                    String destinationSubPath = eval.deviParentFolder + "/" + eval.locationSubfolder;
+                    String destinationSubPath = matchedFestival.getFolderName() + "/" + eval.locationSubfolder;
 
                     // Create eligible PhotoItem
                     PhotoItem eligible = new PhotoItem(
