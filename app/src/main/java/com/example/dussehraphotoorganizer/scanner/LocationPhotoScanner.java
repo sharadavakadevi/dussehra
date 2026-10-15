@@ -9,6 +9,7 @@ import android.provider.MediaStore;
 
 import com.example.dussehraphotoorganizer.data.LocalHistoryRepository;
 import com.example.dussehraphotoorganizer.location.LocationConfigManager;
+import com.example.dussehraphotoorganizer.model.FestivalDateItem;
 import com.example.dussehraphotoorganizer.model.PhotoItem;
 import com.example.dussehraphotoorganizer.schedule.AlankaramSchedule;
 
