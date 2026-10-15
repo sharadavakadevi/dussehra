@@ -64,6 +64,10 @@
     <string name="storage_location_label">స్టోరేజ్ లొకేషన్: Pictures/Dussehra_2026/</string>
     <string name="storage_location_organized_label">స్టోరేజ్ లొకేషన్: Pictures/Dussehra_2026/[Devi_Folder]/[Location_Or_Date]/</string>
 
+    <!-- Duplicate Cleanup -->
+    <string name="btn_clean_duplicates">డూప్లికేట్ కాపీలను తొలగించండి / Clean Duplicate Copies</string>
+    <string name="clean_duplicates_desc">ఫోల్డర్ లోని (1).jpg, (2).jpg వంటి అదనపు డూప్లికేట్ ఫైళ్లను సురక్షితంగా తొలగిస్తుంది. అసలు ఫోటో సురక్షితంగా ఉంటుంది.</string>
+
     <!-- Wi-Fi Photo Sync -->
     <string name="title_wifi_sync">వై-ఫై ఆటో సింక్ / Wi-Fi Photo Sync</string>
     <string name="wifi_sync_desc">రెండు ఫోన్ల మధ్య ఆటోమేటిక్ గా కొత్త ఫోటోలను బదిలీ చేస్తుంది (Automatic P2P)</string>

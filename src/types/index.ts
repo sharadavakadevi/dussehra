@@ -40,4 +40,6 @@ export interface OrganizedPhoto {
   previewUrl: string;
   rawFile?: File;
   selected: boolean;
+  isCopied?: boolean;
+  copiedAt?: number;
 }

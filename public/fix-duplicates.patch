@@ -1,0 +1,1013 @@
+From 930104c76dea632fc819a22b2c9db9db15d9f31e Mon Sep 17 00:00:00 2001
+From: sharadavakadevi <geethamalipeddi6@gmail.com>
+Date: Thu, 15 Oct 2026 12:40:15 +0000
+Subject: [PATCH] fix(organizer): prevent duplicate photos with pre-insert
+ check, history size tracking, and cleanup utility
+
+---
+ .../data/LocalHistoryRepository.java          |  98 +++++---
+ .../model/PhotoItem.java                      |   9 +
+ .../organizer/LocationPhotoOrganizer.java     |  93 ++++++--
+ .../organizer/PhotoOrganizer.java             |  91 ++++++--
+ .../scanner/LocationPhotoScanner.java         |   1 +
+ .../scanner/PhotoMetadataReader.java          |   6 +-
+ .../scanner/PhotoScanner.java                 |   1 +
+ .../service/CameraPhotoContentObserver.java   |  10 +-
+ .../sync/engine/PhotoDestinationSaver.java    |  71 ++++--
+ .../ui/SettingsActivity.java                  |  19 ++
+ .../util/DuplicateCleanupHelper.java          | 210 ++++++++++++++++++
+ app/src/main/res/layout/activity_settings.xml |  45 ++++
+ app/src/main/res/values/strings.xml           |   4 +
+ gradlew                                       |   0
+ src/App.tsx                                   |   4 +-
+ src/components/LocationOrganizerView.tsx      |  11 +-
+ 16 files changed, 581 insertions(+), 92 deletions(-)
+ create mode 100644 app/src/main/java/com/example/dussehraphotoorganizer/util/DuplicateCleanupHelper.java
+ mode change 100644 => 100755 gradlew
+
+diff --git a/app/src/main/java/com/example/dussehraphotoorganizer/data/LocalHistoryRepository.java b/app/src/main/java/com/example/dussehraphotoorganizer/data/LocalHistoryRepository.java
+index 8d94ed0..26397e8 100644
+--- a/app/src/main/java/com/example/dussehraphotoorganizer/data/LocalHistoryRepository.java
++++ b/app/src/main/java/com/example/dussehraphotoorganizer/data/LocalHistoryRepository.java
+@@ -17,11 +17,13 @@ public class LocalHistoryRepository {
+     // Festival processing history
+     private static final String KEY_PROCESSED_MEDIA_IDS = "key_processed_media_ids";
+     private static final String KEY_PROCESSED_FILE_SIGNATURES = "key_processed_file_signatures";
++    private static final String KEY_PROCESSED_FILE_NAMES = "key_processed_file_names";
+     private static final String KEY_LAST_RUN_SUMMARY = "key_last_run_summary";
+ 
+     // Location processing history
+     private static final String KEY_LOC_PROCESSED_MEDIA_IDS = "key_loc_processed_media_ids";
+     private static final String KEY_LOC_PROCESSED_FILE_SIGNATURES = "key_loc_processed_file_signatures";
++    private static final String KEY_LOC_PROCESSED_FILE_NAMES = "key_loc_processed_file_names";
+     private static final String KEY_LAST_LOC_RUN_SUMMARY = "key_last_loc_run_summary";
+     private static final String KEY_AUTO_LOCATION_ORGANIZE = "key_auto_location_organize";
+ 
+@@ -40,26 +42,48 @@ public class LocalHistoryRepository {
+     // Festival Processing
+     // ==========================================
+     public boolean isPhotoAlreadyProcessed(long mediaId, String fileName, long size) {
+-        Set<String> idSet = prefs.getStringSet(KEY_PROCESSED_MEDIA_IDS, new HashSet<>());
+-        if (idSet.contains(String.valueOf(mediaId))) {
+-            return true;
++        if (fileName != null && !fileName.isEmpty()) {
++            Set<String> nameSet = prefs.getStringSet(KEY_PROCESSED_FILE_NAMES, new HashSet<>());
++            if (nameSet.contains(fileName)) {
++                return true;
++            }
++        }
++        if (mediaId > 0) {
++            Set<String> idSet = prefs.getStringSet(KEY_PROCESSED_MEDIA_IDS, new HashSet<>());
++            if (idSet.contains(String.valueOf(mediaId))) {
++                return true;
++            }
+         }
+         Set<String> sigSet = prefs.getStringSet(KEY_PROCESSED_FILE_SIGNATURES, new HashSet<>());
+-        String signature = fileName + "_" + size;
+-        return sigSet.contains(signature);
++        if (sigSet.contains(fileName + "_" + size)) {
++            return true;
++        }
++        if (size > 0 && sigSet.contains(fileName + "_0")) {
++            return true;
++        }
++        return false;
+     }
+ 
+     public synchronized void recordProcessedPhoto(long mediaId, String fileName, long size) {
+-        Set<String> idSet = new HashSet<>(prefs.getStringSet(KEY_PROCESSED_MEDIA_IDS, new HashSet<>()));
+-        idSet.add(String.valueOf(mediaId));
++        SharedPreferences.Editor editor = prefs.edit();
++
++        if (mediaId > 0) {
++            Set<String> idSet = new HashSet<>(prefs.getStringSet(KEY_PROCESSED_MEDIA_IDS, new HashSet<>()));
++            idSet.add(String.valueOf(mediaId));
++            editor.putStringSet(KEY_PROCESSED_MEDIA_IDS, idSet);
++        }
+ 
+-        Set<String> sigSet = new HashSet<>(prefs.getStringSet(KEY_PROCESSED_FILE_SIGNATURES, new HashSet<>()));
+-        sigSet.add(fileName + "_" + size);
++        if (fileName != null && !fileName.isEmpty()) {
++            Set<String> nameSet = new HashSet<>(prefs.getStringSet(KEY_PROCESSED_FILE_NAMES, new HashSet<>()));
++            nameSet.add(fileName);
++            editor.putStringSet(KEY_PROCESSED_FILE_NAMES, nameSet);
++
++            Set<String> sigSet = new HashSet<>(prefs.getStringSet(KEY_PROCESSED_FILE_SIGNATURES, new HashSet<>()));
++            sigSet.add(fileName + "_" + size);
++            editor.putStringSet(KEY_PROCESSED_FILE_SIGNATURES, sigSet);
++        }
+ 
+-        prefs.edit()
+-                .putStringSet(KEY_PROCESSED_MEDIA_IDS, idSet)
+-                .putStringSet(KEY_PROCESSED_FILE_SIGNATURES, sigSet)
+-                .apply();
++        editor.apply();
+     }
+ 
+     public void setLastRunSummary(String summary) {
+@@ -74,26 +98,48 @@ public class LocalHistoryRepository {
+     // Location Processing
+     // ==========================================
+     public boolean isPhotoProcessedForLocation(long mediaId, String fileName, long size) {
+-        Set<String> idSet = prefs.getStringSet(KEY_LOC_PROCESSED_MEDIA_IDS, new HashSet<>());
+-        if (idSet.contains(String.valueOf(mediaId))) {
+-            return true;
++        if (fileName != null && !fileName.isEmpty()) {
++            Set<String> nameSet = prefs.getStringSet(KEY_LOC_PROCESSED_FILE_NAMES, new HashSet<>());
++            if (nameSet.contains(fileName)) {
++                return true;
++            }
++        }
++        if (mediaId > 0) {
++            Set<String> idSet = prefs.getStringSet(KEY_LOC_PROCESSED_MEDIA_IDS, new HashSet<>());
++            if (idSet.contains(String.valueOf(mediaId))) {
++                return true;
++            }
+         }
+         Set<String> sigSet = prefs.getStringSet(KEY_LOC_PROCESSED_FILE_SIGNATURES, new HashSet<>());
+-        String signature = fileName + "_" + size;
+-        return sigSet.contains(signature);
++        if (sigSet.contains(fileName + "_" + size)) {
++            return true;
++        }
++        if (size > 0 && sigSet.contains(fileName + "_0")) {
++            return true;
++        }
++        return false;
+     }
+ 
+     public synchronized void recordProcessedPhotoForLocation(long mediaId, String fileName, long size) {
+-        Set<String> idSet = new HashSet<>(prefs.getStringSet(KEY_LOC_PROCESSED_MEDIA_IDS, new HashSet<>()));
+-        idSet.add(String.valueOf(mediaId));
++        SharedPreferences.Editor editor = prefs.edit();
++
++        if (mediaId > 0) {
++            Set<String> idSet = new HashSet<>(prefs.getStringSet(KEY_LOC_PROCESSED_MEDIA_IDS, new HashSet<>()));
++            idSet.add(String.valueOf(mediaId));
++            editor.putStringSet(KEY_LOC_PROCESSED_MEDIA_IDS, idSet);
++        }
+ 
+-        Set<String> sigSet = new HashSet<>(prefs.getStringSet(KEY_LOC_PROCESSED_FILE_SIGNATURES, new HashSet<>()));
+-        sigSet.add(fileName + "_" + size);
++        if (fileName != null && !fileName.isEmpty()) {
++            Set<String> nameSet = new HashSet<>(prefs.getStringSet(KEY_LOC_PROCESSED_FILE_NAMES, new HashSet<>()));
++            nameSet.add(fileName);
++            editor.putStringSet(KEY_LOC_PROCESSED_FILE_NAMES, nameSet);
++
++            Set<String> sigSet = new HashSet<>(prefs.getStringSet(KEY_LOC_PROCESSED_FILE_SIGNATURES, new HashSet<>()));
++            sigSet.add(fileName + "_" + size);
++            editor.putStringSet(KEY_LOC_PROCESSED_FILE_SIGNATURES, sigSet);
++        }
+ 
+-        prefs.edit()
+-                .putStringSet(KEY_LOC_PROCESSED_MEDIA_IDS, idSet)
+-                .putStringSet(KEY_LOC_PROCESSED_FILE_SIGNATURES, sigSet)
+-                .apply();
++        editor.apply();
+     }
+ 
+     public void setLastLocationRunSummary(String summary) {
+diff --git a/app/src/main/java/com/example/dussehraphotoorganizer/model/PhotoItem.java b/app/src/main/java/com/example/dussehraphotoorganizer/model/PhotoItem.java
+index fdb6c53..427e07c 100644
+--- a/app/src/main/java/com/example/dussehraphotoorganizer/model/PhotoItem.java
++++ b/app/src/main/java/com/example/dussehraphotoorganizer/model/PhotoItem.java
+@@ -15,6 +15,7 @@ public class PhotoItem implements Serializable {
+     private boolean isCameraPhoto;
+     private boolean isSelected;
+     private String statusMessage;
++    private long fileSize;
+     private Double latitude;
+     private Double longitude;
+     private String locationLabel;
+@@ -152,4 +153,12 @@ public class PhotoItem implements Serializable {
+     public void setLocationLabel(String locationLabel) {
+         this.locationLabel = locationLabel;
+     }
++
++    public long getFileSize() {
++        return fileSize;
++    }
++
++    public void setFileSize(long fileSize) {
++        this.fileSize = fileSize;
++    }
+ }
+diff --git a/app/src/main/java/com/example/dussehraphotoorganizer/organizer/LocationPhotoOrganizer.java b/app/src/main/java/com/example/dussehraphotoorganizer/organizer/LocationPhotoOrganizer.java
+index fc2fa31..f656ea5 100644
+--- a/app/src/main/java/com/example/dussehraphotoorganizer/organizer/LocationPhotoOrganizer.java
++++ b/app/src/main/java/com/example/dussehraphotoorganizer/organizer/LocationPhotoOrganizer.java
+@@ -35,6 +35,8 @@ import java.util.List;
+  */
+ public class LocationPhotoOrganizer {
+ 
++    public static volatile boolean isOrganizing = false;
++
+     private final Context context;
+     private final LocalHistoryRepository historyRepository;
+ 
+@@ -53,24 +55,29 @@ public class LocationPhotoOrganizer {
+         int skippedCount = 0;
+         int total = photosToCopy.size();
+ 
+-        for (int i = 0; i < total; i++) {
+-            PhotoItem photo = photosToCopy.get(i);
+-            if (!photo.isSelected()) {
+-                skippedCount++;
+-                continue;
+-            }
++        isOrganizing = true;
++        try {
++            for (int i = 0; i < total; i++) {
++                PhotoItem photo = photosToCopy.get(i);
++                if (!photo.isSelected()) {
++                    skippedCount++;
++                    continue;
++                }
+ 
+-            if (listener != null) {
+-                listener.onProgress(i + 1, total, photo.getFileName(), photo.getDestinationFolderName());
+-            }
++                if (listener != null) {
++                    listener.onProgress(i + 1, total, photo.getFileName(), photo.getDestinationFolderName());
++                }
+ 
+-            boolean success = copySinglePhoto(photo);
+-            if (success) {
+-                copiedCount++;
+-                historyRepository.recordProcessedPhotoForLocation(photo.getId(), photo.getFileName(), 0);
+-            } else {
+-                failedCount++;
++                boolean success = copySinglePhoto(photo);
++                if (success) {
++                    copiedCount++;
++                    historyRepository.recordProcessedPhotoForLocation(photo.getId(), photo.getFileName(), photo.getFileSize());
++                } else {
++                    failedCount++;
++                }
+             }
++        } finally {
++            isOrganizing = false;
+         }
+ 
+         String summary = String.format("Copied: %d, Skipped: %d, Failed: %d", copiedCount, skippedCount, failedCount);
+@@ -94,6 +101,19 @@ public class LocationPhotoOrganizer {
+ 
+         ContentResolver resolver = context.getContentResolver();
+ 
++        // Check if directory on filesystem is known
++        File picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
++        File mainDir = new File(picturesDir, AlankaramSchedule.MAIN_FOLDER_NAME);
++        File targetSubDir = new File(mainDir, subfolder);
++
++        // PRE-INSERT DEDUPLICATION CHECK:
++        // Crucial: If file already exists in destination folder, DO NOT insert again!
++        // Calling resolver.insert on an existing file forces MediaStore to create numbered duplicates like (1).jpg, (2).jpg.
++        if (isFileAlreadyInDestination(resolver, displayName, relativeFolderPath, targetSubDir)) {
++            historyRepository.recordProcessedPhotoForLocation(photo.getId(), photo.getFileName(), photo.getFileSize());
++            return true;
++        }
++
+         try {
+             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                 // Android 10+ (API 29-35) Scoped MediaStore Public Directory insertion
+@@ -101,6 +121,9 @@ public class LocationPhotoOrganizer {
+                 values.put(MediaStore.Images.Media.DISPLAY_NAME, displayName);
+                 values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+                 values.put(MediaStore.Images.Media.RELATIVE_PATH, relativeFolderPath);
++                if (photo.getCaptureTimestamp() > 0) {
++                    values.put(MediaStore.Images.Media.DATE_TAKEN, photo.getCaptureTimestamp());
++                }
+                 values.put(MediaStore.Images.Media.IS_PENDING, 1);
+ 
+                 Uri destinationUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+@@ -126,9 +149,6 @@ public class LocationPhotoOrganizer {
+ 
+             } else {
+                 // Android 8 & 9 (API 26-28) Legacy Public Pictures directory
+-                File picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+-                File mainDir = new File(picturesDir, AlankaramSchedule.MAIN_FOLDER_NAME);
+-                File targetSubDir = new File(mainDir, subfolder);
+                 if (!targetSubDir.exists()) {
+                     boolean created = targetSubDir.mkdirs();
+                     if (!created && !targetSubDir.exists()) {
+@@ -136,12 +156,10 @@ public class LocationPhotoOrganizer {
+                     }
+                 }
+ 
+-                // Unique filename collision handling
+                 File destinationFile = new File(targetSubDir, displayName);
+                 if (destinationFile.exists()) {
+-                    String baseName = displayName.contains(".") ? displayName.substring(0, displayName.lastIndexOf('.')) : displayName;
+-                    String extension = displayName.contains(".") ? displayName.substring(displayName.lastIndexOf('.')) : ".jpg";
+-                    destinationFile = new File(targetSubDir, baseName + "_" + System.currentTimeMillis() + extension);
++                    // Photo already exists in destination, skip to avoid duplicate
++                    return true;
+                 }
+ 
+                 try (InputStream in = resolver.openInputStream(photo.getUri());
+@@ -165,6 +183,37 @@ public class LocationPhotoOrganizer {
+         }
+     }
+ 
++    private boolean isFileAlreadyInDestination(ContentResolver resolver, String displayName, String relativeFolderPath, File targetSubDir) {
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
++            String cleanRelPath = relativeFolderPath.endsWith("/") ? relativeFolderPath : (relativeFolderPath + "/");
++            String altRelPath = relativeFolderPath.endsWith("/") ? relativeFolderPath.substring(0, relativeFolderPath.length() - 1) : relativeFolderPath;
++            String selection = MediaStore.Images.Media.DISPLAY_NAME + "=? AND (" +
++                    MediaStore.Images.Media.RELATIVE_PATH + "=? OR " +
++                    MediaStore.Images.Media.RELATIVE_PATH + "=?)";
++            String[] selectionArgs = new String[]{displayName, cleanRelPath, altRelPath};
++
++            try (android.database.Cursor cursor = resolver.query(
++                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
++                    new String[]{MediaStore.Images.Media._ID},
++                    selection,
++                    selectionArgs,
++                    null
++            )) {
++                if (cursor != null && cursor.moveToFirst()) {
++                    return true;
++                }
++            } catch (Exception ignored) {}
++        }
++
++        if (targetSubDir != null && targetSubDir.exists()) {
++            File dest = new File(targetSubDir, displayName);
++            if (dest.exists()) {
++                return true;
++            }
++        }
++        return false;
++    }
++
+     public static class CopyResult {
+         public final int copiedCount;
+         public final int skippedCount;
+diff --git a/app/src/main/java/com/example/dussehraphotoorganizer/organizer/PhotoOrganizer.java b/app/src/main/java/com/example/dussehraphotoorganizer/organizer/PhotoOrganizer.java
+index 038f5c3..4800bae 100644
+--- a/app/src/main/java/com/example/dussehraphotoorganizer/organizer/PhotoOrganizer.java
++++ b/app/src/main/java/com/example/dussehraphotoorganizer/organizer/PhotoOrganizer.java
+@@ -27,6 +27,8 @@ import java.util.List;
+  */
+ public class PhotoOrganizer {
+ 
++    public static volatile boolean isOrganizing = false;
++
+     private final Context context;
+     private final LocalHistoryRepository historyRepository;
+ 
+@@ -45,25 +47,30 @@ public class PhotoOrganizer {
+         int skippedCount = 0;
+         int total = photosToCopy.size();
+ 
+-        for (int i = 0; i < total; i++) {
+-            PhotoItem photo = photosToCopy.get(i);
+-            if (!photo.isSelected()) {
+-                skippedCount++;
+-                continue;
+-            }
++        isOrganizing = true;
++        try {
++            for (int i = 0; i < total; i++) {
++                PhotoItem photo = photosToCopy.get(i);
++                if (!photo.isSelected()) {
++                    skippedCount++;
++                    continue;
++                }
+ 
+-            if (listener != null) {
+-                listener.onProgress(i + 1, total, photo.getFileName());
+-            }
++                if (listener != null) {
++                    listener.onProgress(i + 1, total, photo.getFileName());
++                }
+ 
+-            boolean success = copySinglePhoto(photo);
+-            if (success) {
+-                copiedCount++;
+-                // Record in history repository to prevent duplicate copies in future scans
+-                historyRepository.recordProcessedPhoto(photo.getId(), photo.getFileName(), 0);
+-            } else {
+-                failedCount++;
++                boolean success = copySinglePhoto(photo);
++                if (success) {
++                    copiedCount++;
++                    // Record in history repository with real file size to prevent duplicate copies in future scans
++                    historyRepository.recordProcessedPhoto(photo.getId(), photo.getFileName(), photo.getFileSize());
++                } else {
++                    failedCount++;
++                }
+             }
++        } finally {
++            isOrganizing = false;
+         }
+ 
+         String summary = String.format("Copied: %d, Skipped: %d, Failed: %d", copiedCount, skippedCount, failedCount);
+@@ -86,6 +93,16 @@ public class PhotoOrganizer {
+ 
+         ContentResolver resolver = context.getContentResolver();
+ 
++        File picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
++        File mainDir = new File(picturesDir, AlankaramSchedule.MAIN_FOLDER_NAME);
++        File targetSubDir = new File(mainDir, subfolder);
++
++        // PRE-INSERT DEDUPLICATION CHECK:
++        if (isFileAlreadyInDestination(resolver, displayName, relativeFolderPath, targetSubDir)) {
++            historyRepository.recordProcessedPhoto(photo.getId(), photo.getFileName(), photo.getFileSize());
++            return true;
++        }
++
+         try {
+             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                 // Android 10+ Scoped MediaStore Public Directory insertion
+@@ -93,6 +110,9 @@ public class PhotoOrganizer {
+                 values.put(MediaStore.Images.Media.DISPLAY_NAME, displayName);
+                 values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+                 values.put(MediaStore.Images.Media.RELATIVE_PATH, relativeFolderPath);
++                if (photo.getCaptureTimestamp() > 0) {
++                    values.put(MediaStore.Images.Media.DATE_TAKEN, photo.getCaptureTimestamp());
++                }
+                 values.put(MediaStore.Images.Media.IS_PENDING, 1);
+ 
+                 Uri destinationUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+@@ -118,9 +138,6 @@ public class PhotoOrganizer {
+ 
+             } else {
+                 // Android 8 & 9 (API 26-28) Legacy Public Pictures directory
+-                File picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+-                File mainDir = new File(picturesDir, AlankaramSchedule.MAIN_FOLDER_NAME);
+-                File targetSubDir = new File(mainDir, subfolder);
+                 if (!targetSubDir.exists()) {
+                     boolean created = targetSubDir.mkdirs();
+                     if (!created && !targetSubDir.exists()) {
+@@ -128,12 +145,9 @@ public class PhotoOrganizer {
+                     }
+                 }
+ 
+-                // Unique filename collision handling
+                 File destinationFile = new File(targetSubDir, displayName);
+                 if (destinationFile.exists()) {
+-                    String baseName = displayName.contains(".") ? displayName.substring(0, displayName.lastIndexOf('.')) : displayName;
+-                    String extension = displayName.contains(".") ? displayName.substring(displayName.lastIndexOf('.')) : ".jpg";
+-                    destinationFile = new File(targetSubDir, baseName + "_" + System.currentTimeMillis() + extension);
++                    return true;
+                 }
+ 
+                 try (InputStream in = resolver.openInputStream(photo.getUri());
+@@ -158,6 +172,37 @@ public class PhotoOrganizer {
+         }
+     }
+ 
++    private boolean isFileAlreadyInDestination(ContentResolver resolver, String displayName, String relativeFolderPath, File targetSubDir) {
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
++            String cleanRelPath = relativeFolderPath.endsWith("/") ? relativeFolderPath : (relativeFolderPath + "/");
++            String altRelPath = relativeFolderPath.endsWith("/") ? relativeFolderPath.substring(0, relativeFolderPath.length() - 1) : relativeFolderPath;
++            String selection = MediaStore.Images.Media.DISPLAY_NAME + "=? AND (" +
++                    MediaStore.Images.Media.RELATIVE_PATH + "=? OR " +
++                    MediaStore.Images.Media.RELATIVE_PATH + "=?)";
++            String[] selectionArgs = new String[]{displayName, cleanRelPath, altRelPath};
++
++            try (android.database.Cursor cursor = resolver.query(
++                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
++                    new String[]{MediaStore.Images.Media._ID},
++                    selection,
++                    selectionArgs,
++                    null
++            )) {
++                if (cursor != null && cursor.moveToFirst()) {
++                    return true;
++                }
++            } catch (Exception ignored) {}
++        }
++
++        if (targetSubDir != null && targetSubDir.exists()) {
++            File dest = new File(targetSubDir, displayName);
++            if (dest.exists()) {
++                return true;
++            }
++        }
++        return false;
++    }
++
+     public static class CopyResult {
+         public final int copiedCount;
+         public final int skippedCount;
+diff --git a/app/src/main/java/com/example/dussehraphotoorganizer/scanner/LocationPhotoScanner.java b/app/src/main/java/com/example/dussehraphotoorganizer/scanner/LocationPhotoScanner.java
+index 1ae9486..a9b7cb7 100644
+--- a/app/src/main/java/com/example/dussehraphotoorganizer/scanner/LocationPhotoScanner.java
++++ b/app/src/main/java/com/example/dussehraphotoorganizer/scanner/LocationPhotoScanner.java
+@@ -160,6 +160,7 @@ public class LocationPhotoScanner {
+                             true
+                     );
+                     eligible.setRootDirectory(AlankaramSchedule.MAIN_FOLDER_NAME);
++                    eligible.setFileSize(size);
+                     eligible.setStatusMessage(eval.statusSummary);
+                     eligible.setLocationLabel(eval.selectedAlias != null ? eval.selectedAlias : ("Date: " + eval.locationSubfolder));
+                     if (meta.hasGpsCoordinates()) {
+diff --git a/app/src/main/java/com/example/dussehraphotoorganizer/scanner/PhotoMetadataReader.java b/app/src/main/java/com/example/dussehraphotoorganizer/scanner/PhotoMetadataReader.java
+index f621882..d428e09 100644
+--- a/app/src/main/java/com/example/dussehraphotoorganizer/scanner/PhotoMetadataReader.java
++++ b/app/src/main/java/com/example/dussehraphotoorganizer/scanner/PhotoMetadataReader.java
+@@ -39,7 +39,11 @@ public class PhotoMetadataReader {
+         String nameLower = displayName.toLowerCase(Locale.US);
+         String pathLower = (relativePath != null) ? relativePath.toLowerCase(Locale.US) : "";
+ 
+-        // 1. Strict Exclusion of non-camera sources
++        // 1. Strict Exclusion of non-camera sources and duplicate copies
++        if (nameLower.matches(".*\\s*\\(\\d+\\)\\.[a-z0-9]+$")) {
++            // Numbered duplicate copy generated by Android MediaStore collision (e.g. IMG_... (1).jpg)
++            return false;
++        }
+         if (pathLower.contains("whatsapp") || (nameLower.startsWith("img-") && nameLower.contains("-wa"))) {
+             return false;
+         }
+diff --git a/app/src/main/java/com/example/dussehraphotoorganizer/scanner/PhotoScanner.java b/app/src/main/java/com/example/dussehraphotoorganizer/scanner/PhotoScanner.java
+index 74706f5..b93786b 100644
+--- a/app/src/main/java/com/example/dussehraphotoorganizer/scanner/PhotoScanner.java
++++ b/app/src/main/java/com/example/dussehraphotoorganizer/scanner/PhotoScanner.java
+@@ -153,6 +153,7 @@ public class PhotoScanner {
+                             true
+                     );
+                     eligible.setRootDirectory(AlankaramSchedule.MAIN_FOLDER_NAME);
++                    eligible.setFileSize(size);
+                     eligible.setStatusMessage(matchedFestival.getTeluguName() + " (" + eval.statusSummary + ")");
+                     eligible.setLocationLabel(eval.selectedAlias != null ? eval.selectedAlias : ("Date: " + eval.locationSubfolder));
+                     if (meta.hasGpsCoordinates()) {
+diff --git a/app/src/main/java/com/example/dussehraphotoorganizer/service/CameraPhotoContentObserver.java b/app/src/main/java/com/example/dussehraphotoorganizer/service/CameraPhotoContentObserver.java
+index 289ace7..f870dc3 100644
+--- a/app/src/main/java/com/example/dussehraphotoorganizer/service/CameraPhotoContentObserver.java
++++ b/app/src/main/java/com/example/dussehraphotoorganizer/service/CameraPhotoContentObserver.java
+@@ -34,9 +34,15 @@ public class CameraPhotoContentObserver extends ContentObserver {
+     public void onChange(boolean selfChange, Uri uri) {
+         super.onChange(selfChange, uri);
+ 
+-        // Debounce rapid camera shutter bursts (within 2 seconds)
++        // 1. Prevent infinite loops: If an organization copy operation is actively writing, ignore
++        if (com.example.dussehraphotoorganizer.organizer.LocationPhotoOrganizer.isOrganizing ||
++            com.example.dussehraphotoorganizer.organizer.PhotoOrganizer.isOrganizing) {
++            return;
++        }
++
++        // 2. Debounce rapid camera shutter bursts (within 3 seconds)
+         long now = System.currentTimeMillis();
+-        if (now - lastTriggerTime < 2000) {
++        if (now - lastTriggerTime < 3000) {
+             return;
+         }
+         lastTriggerTime = now;
+diff --git a/app/src/main/java/com/example/dussehraphotoorganizer/sync/engine/PhotoDestinationSaver.java b/app/src/main/java/com/example/dussehraphotoorganizer/sync/engine/PhotoDestinationSaver.java
+index ca73a57..cd376a1 100644
+--- a/app/src/main/java/com/example/dussehraphotoorganizer/sync/engine/PhotoDestinationSaver.java
++++ b/app/src/main/java/com/example/dussehraphotoorganizer/sync/engine/PhotoDestinationSaver.java
+@@ -107,6 +107,18 @@ public class PhotoDestinationSaver {
+         ContentResolver resolver = context.getContentResolver();
+         boolean saved = false;
+ 
++        // Check if destination directory already contains this photo
++        File picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
++        File mainDir = new File(picturesDir, AlankaramSchedule.MAIN_FOLDER_NAME);
++        File targetSubDir = new File(mainDir, subfolder);
++
++        if (isAlreadySaved(resolver, displayName, relativeFolderPath, targetSubDir)) {
++            Log.d(TAG, "Photo already exists at destination, skipping duplicate insert: " + displayName);
++            syncLedgerRepository.recordIncomingPhotoReceived(header.sha256);
++            historyRepository.recordProcessedPhotoForLocation(0, displayName, header.fileSize);
++            return true;
++        }
++
+         try {
+             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                 // Scoped MediaStore Public Directory insertion
+@@ -162,23 +174,21 @@ public class PhotoDestinationSaver {
+ 
+                 File destinationFile = new File(targetSubDir, displayName);
+                 if (destinationFile.exists()) {
+-                    String baseName = displayName.contains(".") ? displayName.substring(0, displayName.lastIndexOf('.')) : displayName;
+-                    String ext = displayName.contains(".") ? displayName.substring(displayName.lastIndexOf('.')) : ".jpg";
+-                    destinationFile = new File(targetSubDir, baseName + "_" + System.currentTimeMillis() + ext);
+-                }
+-
+-                try (InputStream in = new FileInputStream(tempFile);
+-                     OutputStream out = new FileOutputStream(destinationFile)) {
+-                    byte[] buffer = new byte[16384];
+-                    int len;
+-                    while ((len = in.read(buffer)) > 0) {
+-                        out.write(buffer, 0, len);
++                    saved = true;
++                } else {
++                    try (InputStream in = new FileInputStream(tempFile);
++                         OutputStream out = new FileOutputStream(destinationFile)) {
++                        byte[] buffer = new byte[16384];
++                        int len;
++                        while ((len = in.read(buffer)) > 0) {
++                            out.write(buffer, 0, len);
++                        }
++                        out.flush();
+                     }
+-                    out.flush();
+-                }
+ 
+-                MediaStore.Images.Media.insertImage(resolver, destinationFile.getAbsolutePath(), destinationFile.getName(), null);
+-                saved = true;
++                    MediaStore.Images.Media.insertImage(resolver, destinationFile.getAbsolutePath(), destinationFile.getName(), null);
++                    saved = true;
++                }
+             }
+ 
+             if (saved) {
+@@ -198,4 +208,35 @@ public class PhotoDestinationSaver {
+ 
+         return saved;
+     }
++
++    private boolean isAlreadySaved(ContentResolver resolver, String displayName, String relativeFolderPath, File targetSubDir) {
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
++            String cleanRelPath = relativeFolderPath.endsWith("/") ? relativeFolderPath : (relativeFolderPath + "/");
++            String altRelPath = relativeFolderPath.endsWith("/") ? relativeFolderPath.substring(0, relativeFolderPath.length() - 1) : relativeFolderPath;
++            String selection = MediaStore.Images.Media.DISPLAY_NAME + "=? AND (" +
++                    MediaStore.Images.Media.RELATIVE_PATH + "=? OR " +
++                    MediaStore.Images.Media.RELATIVE_PATH + "=?)";
++            String[] selectionArgs = new String[]{displayName, cleanRelPath, altRelPath};
++
++            try (android.database.Cursor cursor = resolver.query(
++                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
++                    new String[]{MediaStore.Images.Media._ID},
++                    selection,
++                    selectionArgs,
++                    null
++            )) {
++                if (cursor != null && cursor.moveToFirst()) {
++                    return true;
++                }
++            } catch (Exception ignored) {}
++        }
++
++        if (targetSubDir != null && targetSubDir.exists()) {
++            File dest = new File(targetSubDir, displayName);
++            if (dest.exists()) {
++                return true;
++            }
++        }
++        return false;
++    }
+ }
+diff --git a/app/src/main/java/com/example/dussehraphotoorganizer/ui/SettingsActivity.java b/app/src/main/java/com/example/dussehraphotoorganizer/ui/SettingsActivity.java
+index 6da3855..81b30fb 100644
+--- a/app/src/main/java/com/example/dussehraphotoorganizer/ui/SettingsActivity.java
++++ b/app/src/main/java/com/example/dussehraphotoorganizer/ui/SettingsActivity.java
+@@ -48,6 +48,25 @@ public class SettingsActivity extends AppCompatActivity {
+         switchIncludeVideos = findViewById(R.id.switchIncludeVideos);
+         btnConfigureLocations = findViewById(R.id.btnConfigureLocations);
+         btnManagePairing = findViewById(R.id.btnManagePairing);
++        MaterialButton btnCleanDuplicates = findViewById(R.id.btnCleanDuplicates);
++
++        if (btnCleanDuplicates != null) {
++            btnCleanDuplicates.setOnClickListener(v -> {
++                btnCleanDuplicates.setEnabled(false);
++                btnCleanDuplicates.setText("Cleaning duplicates...");
++                new com.example.dussehraphotoorganizer.util.DuplicateCleanupHelper(this).cleanDuplicates((removedCount, freedBytes, msg) -> {
++                    runOnUiThread(() -> {
++                        btnCleanDuplicates.setEnabled(true);
++                        btnCleanDuplicates.setText(R.string.btn_clean_duplicates);
++                        new androidx.appcompat.app.AlertDialog.Builder(SettingsActivity.this)
++                                .setTitle("Duplicate Cleanup")
++                                .setMessage(msg)
++                                .setPositiveButton("OK", null)
++                                .show();
++                    });
++                });
++            });
++        }
+ 
+         switchAutoLocationOrganize.setChecked(historyRepository.isAutoLocationOrganizeEnabled());
+         switchAutoOrganize.setChecked(historyRepository.isAutoOrganizeEnabled());
+diff --git a/app/src/main/java/com/example/dussehraphotoorganizer/util/DuplicateCleanupHelper.java b/app/src/main/java/com/example/dussehraphotoorganizer/util/DuplicateCleanupHelper.java
+new file mode 100644
+index 0000000..7b350aa
+--- /dev/null
++++ b/app/src/main/java/com/example/dussehraphotoorganizer/util/DuplicateCleanupHelper.java
+@@ -0,0 +1,210 @@
++package com.example.dussehraphotoorganizer.util;
++
++import android.content.ContentResolver;
++import android.content.ContentUris;
++import android.content.Context;
++import android.database.Cursor;
++import android.net.Uri;
++import android.os.Build;
++import android.os.Environment;
++import android.provider.MediaStore;
++import android.util.Log;
++
++import com.example.dussehraphotoorganizer.schedule.AlankaramSchedule;
++
++import java.io.File;
++import java.util.ArrayList;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.regex.Matcher;
++import java.util.regex.Pattern;
++
++/**
++ * DuplicateCleanupHelper safely scans Pictures/Dussehra_2026/ for numbered duplicate copies
++ * (e.g. "IMG_20261013_064738 (1).jpg", "(2).jpg", "(3).jpg") generated during MediaStore collisions,
++ * and removes the redundant copies while preserving the single pristine original file ("IMG_20261013_064738.jpg").
++ */
++public class DuplicateCleanupHelper {
++
++    private static final String TAG = "DuplicateCleanupHelper";
++    private static final Pattern DUPLICATE_PATTERN = Pattern.compile("^(.+?)\\s*\\(\\d+\\)\\.([a-zA-Z0-9]+)$");
++
++    private final Context context;
++
++    public interface CleanupCallback {
++        void onComplete(int removedCount, long freedBytes, String message);
++    }
++
++    public DuplicateCleanupHelper(Context context) {
++        this.context = context.getApplicationContext();
++    }
++
++    public void cleanDuplicates(CleanupCallback callback) {
++        new Thread(() -> {
++            int removedCount = 0;
++            long freedBytes = 0;
++
++            try {
++                ContentResolver resolver = context.getContentResolver();
++
++                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
++                    // Query all photos inside Pictures/Dussehra_2026/
++                    String selection = MediaStore.Images.Media.RELATIVE_PATH + " LIKE ?";
++                    String[] selectionArgs = new String[]{"Pictures/" + AlankaramSchedule.MAIN_FOLDER_NAME + "/%"};
++
++                    String[] projection = new String[]{
++                            MediaStore.Images.Media._ID,
++                            MediaStore.Images.Media.DISPLAY_NAME,
++                            MediaStore.Images.Media.RELATIVE_PATH,
++                            MediaStore.Images.Media.SIZE
++                    };
++
++                    Map<String, List<DuplicateCandidate>> mapByFolder = new HashMap<>();
++
++                    try (Cursor cursor = resolver.query(
++                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
++                            projection,
++                            selection,
++                            selectionArgs,
++                            null
++                    )) {
++                        if (cursor != null) {
++                            int idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID);
++                            int nameCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME);
++                            int pathCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH);
++                            int sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE);
++
++                            while (cursor.moveToNext()) {
++                                long id = cursor.getLong(idCol);
++                                String name = cursor.getString(nameCol);
++                                String path = cursor.getString(pathCol);
++                                long size = cursor.getLong(sizeCol);
++
++                                if (path == null) path = "";
++                                if (!mapByFolder.containsKey(path)) {
++                                    mapByFolder.put(path, new ArrayList<>());
++                                }
++                                mapByFolder.get(path).add(new DuplicateCandidate(id, name, path, size));
++                            }
++                        }
++                    }
++
++                    // Process each folder: find duplicates matching original files
++                    for (Map.Entry<String, List<DuplicateCandidate>> entry : mapByFolder.entrySet()) {
++                        List<DuplicateCandidate> items = entry.getValue();
++                        Map<String, DuplicateCandidate> masterMap = new HashMap<>();
++
++                        // Identify master files (without numbered suffixes)
++                        for (DuplicateCandidate item : items) {
++                            Matcher m = DUPLICATE_PATTERN.matcher(item.displayName);
++                            if (!m.matches()) {
++                                masterMap.put(item.displayName, item);
++                            }
++                        }
++
++                        // Remove duplicates that match an existing master file or another identical duplicate
++                        for (DuplicateCandidate item : items) {
++                            Matcher m = DUPLICATE_PATTERN.matcher(item.displayName);
++                            if (m.matches()) {
++                                String baseName = m.group(1);
++                                String ext = m.group(2);
++                                String originalName = baseName + "." + ext;
++
++                                // If master file exists in the folder, delete the numbered duplicate
++                                if (masterMap.containsKey(originalName)) {
++                                    Uri itemUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, item.id);
++                                    try {
++                                        int deleted = resolver.delete(itemUri, null, null);
++                                        if (deleted > 0) {
++                                            removedCount++;
++                                            freedBytes += item.size;
++                                            Log.d(TAG, "Safely removed duplicate copy: " + item.displayName + " from " + item.relativePath);
++                                        }
++                                    } catch (Exception e) {
++                                        Log.w(TAG, "Could not delete duplicate " + item.displayName + ": " + e.getMessage());
++                                    }
++                                }
++                            }
++                        }
++                    }
++
++                } else {
++                    // Pre-Android 10: Filesystem scan
++                    File picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
++                    File mainDir = new File(picturesDir, AlankaramSchedule.MAIN_FOLDER_NAME);
++                    if (mainDir.exists() && mainDir.isDirectory()) {
++                        int[] stats = cleanDirectoryRecursive(mainDir);
++                        removedCount = stats[0];
++                        freedBytes = stats[1];
++                    }
++                }
++
++            } catch (Exception e) {
++                Log.e(TAG, "Error during duplicate cleanup: " + e.getMessage(), e);
++            }
++
++            final int finalRemoved = removedCount;
++            final long finalFreed = freedBytes;
++            double mbFreed = (double) finalFreed / (1024 * 1024);
++            final String msg = String.format("Cleaned %d duplicate copies (Freed %.2f MB)", finalRemoved, mbFreed);
++
++            if (callback != null) {
++                callback.onComplete(finalRemoved, finalFreed, msg);
++            }
++        }).start();
++    }
++
++    private int[] cleanDirectoryRecursive(File dir) {
++        int count = 0;
++        long bytes = 0;
++        File[] files = dir.listFiles();
++        if (files == null) return new int[]{0, 0};
++
++        Map<String, File> originalFiles = new HashMap<>();
++        for (File f : files) {
++            if (f.isFile()) {
++                Matcher m = DUPLICATE_PATTERN.matcher(f.getName());
++                if (!m.matches()) {
++                    originalFiles.put(f.getName(), f);
++                }
++            }
++        }
++
++        for (File f : files) {
++            if (f.isDirectory()) {
++                int[] sub = cleanDirectoryRecursive(f);
++                count += sub[0];
++                bytes += sub[1];
++            } else if (f.isFile()) {
++                Matcher m = DUPLICATE_PATTERN.matcher(f.getName());
++                if (m.matches()) {
++                    String originalName = m.group(1) + "." + m.group(2);
++                    if (originalFiles.containsKey(originalName)) {
++                        long size = f.length();
++                        if (f.delete()) {
++                            count++;
++                            bytes += size;
++                        }
++                    }
++                }
++            }
++        }
++
++        return new int[]{count, (int) bytes};
++    }
++
++    private static class DuplicateCandidate {
++        final long id;
++        final String displayName;
++        final String relativePath;
++        final long size;
++
++        DuplicateCandidate(long id, String displayName, String relativePath, long size) {
++            this.id = id;
++            this.displayName = displayName;
++            this.relativePath = relativePath;
++            this.size = size;
++        }
++    }
++}
+diff --git a/app/src/main/res/layout/activity_settings.xml b/app/src/main/res/layout/activity_settings.xml
+index 7e25e0d..cc3d03e 100644
+--- a/app/src/main/res/layout/activity_settings.xml
++++ b/app/src/main/res/layout/activity_settings.xml
+@@ -246,6 +246,51 @@
+                 </LinearLayout>
+             </com.google.android.material.card.MaterialCardView>
+ 
++            <!-- Duplicate Copies Cleanup Option -->
++            <com.google.android.material.card.MaterialCardView
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                app:cardCornerRadius="12dp"
++                app:cardElevation="1dp"
++                app:strokeColor="@color/maroon_kumkum"
++                app:strokeWidth="1.5dp"
++                app:cardBackgroundColor="@color/white"
++                android:layout_marginBottom="12dp">
++
++                <LinearLayout
++                    android:layout_width="match_parent"
++                    android:layout_height="wrap_content"
++                    android:orientation="vertical"
++                    android:padding="16dp">
++
++                    <TextView
++                        android:layout_width="match_parent"
++                        android:layout_height="wrap_content"
++                        android:text="🧹 Clean Redundant Duplicates"
++                        android:textSize="15sp"
++                        android:textStyle="bold"
++                        android:textColor="@color/maroon_kumkum" />
++
++                    <TextView
++                        android:layout_width="match_parent"
++                        android:layout_height="wrap_content"
++                        android:text="@string/clean_duplicates_desc"
++                        android:textSize="12sp"
++                        android:textColor="@color/text_secondary"
++                        android:layout_marginTop="4dp" />
++
++                    <com.google.android.material.button.MaterialButton
++                        android:id="@+id/btnCleanDuplicates"
++                        android:layout_width="match_parent"
++                        android:layout_height="48dp"
++                        android:text="@string/btn_clean_duplicates"
++                        style="@style/Widget.Material3.Button.TonalButton"
++                        android:textColor="@color/maroon_kumkum"
++                        app:cornerRadius="8dp"
++                        android:layout_marginTop="12dp" />
++                </LinearLayout>
++            </com.google.android.material.card.MaterialCardView>
++
+             <!-- Storage Location Info -->
+             <com.google.android.material.card.MaterialCardView
+                 android:layout_width="match_parent"
+diff --git a/app/src/main/res/values/strings.xml b/app/src/main/res/values/strings.xml
+index 830cd37..bfa2b79 100644
+--- a/app/src/main/res/values/strings.xml
++++ b/app/src/main/res/values/strings.xml
+@@ -64,6 +64,10 @@
+     <string name="storage_location_label">స్టోరేజ్ లొకేషన్: Pictures/Dussehra_2026/</string>
+     <string name="storage_location_organized_label">స్టోరేజ్ లొకేషన్: Pictures/Dussehra_2026/[Devi_Folder]/[Location_Or_Date]/</string>
+ 
++    <!-- Duplicate Cleanup -->
++    <string name="btn_clean_duplicates">డూప్లికేట్ కాపీలను తొలగించండి / Clean Duplicate Copies</string>
++    <string name="clean_duplicates_desc">ఫోల్డర్ లోని (1).jpg, (2).jpg వంటి అదనపు డూప్లికేట్ ఫైళ్లను సురక్షితంగా తొలగిస్తుంది. అసలు ఫోటో సురక్షితంగా ఉంటుంది.</string>
++
+     <!-- Wi-Fi Photo Sync -->
+     <string name="title_wifi_sync">వై-ఫై ఆటో సింక్ / Wi-Fi Photo Sync</string>
+     <string name="wifi_sync_desc">రెండు ఫోన్ల మధ్య ఆటోమేటిక్ గా కొత్త ఫోటోలను బదిలీ చేస్తుంది (Automatic P2P)</string>
+diff --git a/gradlew b/gradlew
+old mode 100644
+new mode 100755
+diff --git a/src/App.tsx b/src/App.tsx
+index efab081..f4c3ab5 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -85,8 +85,8 @@ export const App: React.FC = () => {
+ 
+   const handlePhotosOrganized = (newlyOrganized: OrganizedPhoto[]) => {
+     setPhotos((prev) => {
+-      const existingIds = new Set(prev.map((p) => p.id));
+-      const added = newlyOrganized.filter((p) => !existingIds.has(p.id));
++      const existingSignatures = new Set(prev.map((p) => `${p.destinationFolder}/${p.fileName}`));
++      const added = newlyOrganized.filter((p) => !existingSignatures.has(`${p.destinationFolder}/${p.fileName}`));
+       return [...added, ...prev];
+     });
+   };
+diff --git a/src/components/LocationOrganizerView.tsx b/src/components/LocationOrganizerView.tsx
+index c6d9fae..70ffc1f 100644
+--- a/src/components/LocationOrganizerView.tsx
++++ b/src/components/LocationOrganizerView.tsx
+@@ -51,7 +51,16 @@ export const LocationOrganizerView: React.FC<LocationOrganizerViewProps> = ({
+       const file = files[i];
+       const meta = await parseFileMetadata(file);
+ 
+-      // 1. Strict authentic camera check
++      // 1. Strict duplicate exclusion (reject (1).jpg, (2).jpg)
++      if (/\s*\(\d+\)\.[a-zA-Z0-9]+$/i.test(file.name)) {
++        newReviewItems.push({
++          name: file.name,
++          reason: 'Excluded: Numbered duplicate copy generated by file collision (e.g. (1).jpg)',
++        });
++        continue;
++      }
++
++      // 2. Strict authentic camera check
+       if (!meta.isAuthenticCamera) {
+         newReviewItems.push({
+           name: file.name,
+-- 
+2.34.1
+

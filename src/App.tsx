@@ -85,8 +85,8 @@ export const App: React.FC = () => {
 
   const handlePhotosOrganized = (newlyOrganized: OrganizedPhoto[]) => {
     setPhotos((prev) => {
-      const existingIds = new Set(prev.map((p) => p.id));
-      const added = newlyOrganized.filter((p) => !existingIds.has(p.id));
+      const existingSignatures = new Set(prev.map((p) => `${p.destinationFolder}/${p.fileName}`));
+      const added = newlyOrganized.filter((p) => !existingSignatures.has(`${p.destinationFolder}/${p.fileName}`));
       return [...added, ...prev];
     });
   };

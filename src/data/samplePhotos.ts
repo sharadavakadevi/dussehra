@@ -18,9 +18,11 @@ export const SAMPLE_CAMERA_PHOTOS: OrganizedPhoto[] = [
     longitude: 83.361830,
     distanceMeters: 1.2,
     locationLabel: 'Home',
-    statusMessage: '📍 Home (1.2m <= 40m) -> Sri_Bala_Tripura_Sundari_Devi/Home/',
+    statusMessage: '✓ Copied to Pictures/Sri_Bala_Tripura_Sundari_Devi/Home/',
     previewUrl: 'https://images.unsplash.com/photo-1545232979-8bf68ee9b1af?auto=format&fit=crop&w=600&q=80',
-    selected: true
+    selected: false,
+    isCopied: true,
+    copiedAt: 1728635712000
   },
   {
     id: 'sample_2',
@@ -60,9 +62,11 @@ export const SAMPLE_CAMERA_PHOTOS: OrganizedPhoto[] = [
     longitude: 83.352670,
     distanceMeters: 1.4,
     locationLabel: 'Carshed Bobleam',
-    statusMessage: '📍 Carshed Bobleam (1.4m <= 40m) -> Sri_Annapurna_Devi/Carshed_Bobleam/',
+    statusMessage: '✓ Copied to Pictures/Sri_Annapurna_Devi/Carshed_Bobleam/',
     previewUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80',
-    selected: true
+    selected: false,
+    isCopied: true,
+    copiedAt: 1728836405000
   },
   {
     id: 'sample_4',

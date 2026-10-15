@@ -27,6 +27,8 @@ import java.util.List;
  */
 public class PhotoOrganizer {
 
+    public static volatile boolean isOrganizing = false;
+
     private final Context context;
     private final LocalHistoryRepository historyRepository;
 
@@ -45,25 +47,30 @@ public class PhotoOrganizer {
         int skippedCount = 0;
         int total = photosToCopy.size();
 
-        for (int i = 0; i < total; i++) {
-            PhotoItem photo = photosToCopy.get(i);
-            if (!photo.isSelected()) {
-                skippedCount++;
-                continue;
-            }
+        isOrganizing = true;
+        try {
+            for (int i = 0; i < total; i++) {
+                PhotoItem photo = photosToCopy.get(i);
+                if (!photo.isSelected()) {
+                    skippedCount++;
+                    continue;
+                }
 
-            if (listener != null) {
-                listener.onProgress(i + 1, total, photo.getFileName());
-            }
+                if (listener != null) {
+                    listener.onProgress(i + 1, total, photo.getFileName());
+                }
 
-            boolean success = copySinglePhoto(photo);
-            if (success) {
-                copiedCount++;
-                // Record in history repository to prevent duplicate copies in future scans
-                historyRepository.recordProcessedPhoto(photo.getId(), photo.getFileName(), 0);
-            } else {
-                failedCount++;
+                boolean success = copySinglePhoto(photo);
+                if (success) {
+                    copiedCount++;
+                    // Record in history repository with real file size to prevent duplicate copies in future scans
+                    historyRepository.recordProcessedPhoto(photo.getId(), photo.getFileName(), photo.getFileSize());
+                } else {
+                    failedCount++;
+                }
             }
+        } finally {
+            isOrganizing = false;
         }
 
         String summary = String.format("Copied: %d, Skipped: %d, Failed: %d", copiedCount, skippedCount, failedCount);
@@ -86,6 +93,16 @@ public class PhotoOrganizer {
 
         ContentResolver resolver = context.getContentResolver();
 
+        File picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+        File mainDir = new File(picturesDir, AlankaramSchedule.MAIN_FOLDER_NAME);
+        File targetSubDir = new File(mainDir, subfolder);
+
+        // PRE-INSERT DEDUPLICATION CHECK:
+        if (isFileAlreadyInDestination(resolver, displayName, relativeFolderPath, targetSubDir)) {
+            historyRepository.recordProcessedPhoto(photo.getId(), photo.getFileName(), photo.getFileSize());
+            return true;
+        }
+
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 // Android 10+ Scoped MediaStore Public Directory insertion
@@ -93,6 +110,9 @@ public class PhotoOrganizer {
                 values.put(MediaStore.Images.Media.DISPLAY_NAME, displayName);
                 values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
                 values.put(MediaStore.Images.Media.RELATIVE_PATH, relativeFolderPath);
+                if (photo.getCaptureTimestamp() > 0) {
+                    values.put(MediaStore.Images.Media.DATE_TAKEN, photo.getCaptureTimestamp());
+                }
                 values.put(MediaStore.Images.Media.IS_PENDING, 1);
 
                 Uri destinationUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
@@ -118,9 +138,6 @@ public class PhotoOrganizer {
 
             } else {
                 // Android 8 & 9 (API 26-28) Legacy Public Pictures directory
-                File picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
-                File mainDir = new File(picturesDir, AlankaramSchedule.MAIN_FOLDER_NAME);
-                File targetSubDir = new File(mainDir, subfolder);
                 if (!targetSubDir.exists()) {
                     boolean created = targetSubDir.mkdirs();
                     if (!created && !targetSubDir.exists()) {
@@ -128,12 +145,9 @@ public class PhotoOrganizer {
                     }
                 }
 
-                // Unique filename collision handling
                 File destinationFile = new File(targetSubDir, displayName);
                 if (destinationFile.exists()) {
-                    String baseName = displayName.contains(".") ? displayName.substring(0, displayName.lastIndexOf('.')) : displayName;
-                    String extension = displayName.contains(".") ? displayName.substring(displayName.lastIndexOf('.')) : ".jpg";
-                    destinationFile = new File(targetSubDir, baseName + "_" + System.currentTimeMillis() + extension);
+                    return true;
                 }
 
                 try (InputStream in = resolver.openInputStream(photo.getUri());
@@ -156,6 +170,37 @@ public class PhotoOrganizer {
             e.printStackTrace();
             return false;
         }
+    }
+
+    private boolean isFileAlreadyInDestination(ContentResolver resolver, String displayName, String relativeFolderPath, File targetSubDir) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            String cleanRelPath = relativeFolderPath.endsWith("/") ? relativeFolderPath : (relativeFolderPath + "/");
+            String altRelPath = relativeFolderPath.endsWith("/") ? relativeFolderPath.substring(0, relativeFolderPath.length() - 1) : relativeFolderPath;
+            String selection = MediaStore.Images.Media.DISPLAY_NAME + "=? AND (" +
+                    MediaStore.Images.Media.RELATIVE_PATH + "=? OR " +
+                    MediaStore.Images.Media.RELATIVE_PATH + "=?)";
+            String[] selectionArgs = new String[]{displayName, cleanRelPath, altRelPath};
+
+            try (android.database.Cursor cursor = resolver.query(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    new String[]{MediaStore.Images.Media._ID},
+                    selection,
+                    selectionArgs,
+                    null
+            )) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    return true;
+                }
+            } catch (Exception ignored) {}
+        }
+
+        if (targetSubDir != null && targetSubDir.exists()) {
+            File dest = new File(targetSubDir, displayName);
+            if (dest.exists()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static class CopyResult {

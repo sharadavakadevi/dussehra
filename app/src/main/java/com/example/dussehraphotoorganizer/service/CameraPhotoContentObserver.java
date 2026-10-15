@@ -34,9 +34,15 @@ public class CameraPhotoContentObserver extends ContentObserver {
     public void onChange(boolean selfChange, Uri uri) {
         super.onChange(selfChange, uri);
 
-        // Debounce rapid camera shutter bursts (within 2 seconds)
+        // 1. Prevent infinite loops: If an organization copy operation is actively writing, ignore
+        if (com.example.dussehraphotoorganizer.organizer.LocationPhotoOrganizer.isOrganizing ||
+            com.example.dussehraphotoorganizer.organizer.PhotoOrganizer.isOrganizing) {
+            return;
+        }
+
+        // 2. Debounce rapid camera shutter bursts (within 3 seconds)
         long now = System.currentTimeMillis();
-        if (now - lastTriggerTime < 2000) {
+        if (now - lastTriggerTime < 3000) {
             return;
         }
         lastTriggerTime = now;

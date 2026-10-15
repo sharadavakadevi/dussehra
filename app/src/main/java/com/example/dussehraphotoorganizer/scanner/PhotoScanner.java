@@ -109,11 +109,8 @@ public class PhotoScanner {
                         continue;
                     }
 
-                    // 2. Check if already processed (duplicate prevention)
-                    if (historyRepository.isPhotoAlreadyProcessed(id, displayName, size)) {
-                        skippedCount++;
-                        continue;
-                    }
+                    // 2. Duplicate Check: Check if already organized in Festival pipeline
+                    boolean alreadyProcessed = historyRepository.isPhotoAlreadyProcessed(id, displayName, size);
 
                     // 3. Extract exact capture date and GPS from EXIF
                     PhotoMetadataReader.PhotoFullMetadata meta = metadataReader.extractFullMetadata(contentUri, dateTaken);
@@ -153,7 +150,14 @@ public class PhotoScanner {
                             true
                     );
                     eligible.setRootDirectory(AlankaramSchedule.MAIN_FOLDER_NAME);
-                    eligible.setStatusMessage(matchedFestival.getTeluguName() + " (" + eval.statusSummary + ")");
+                    eligible.setFileSize(size);
+                    eligible.setAlreadyCopied(alreadyProcessed);
+                    eligible.setSelected(!alreadyProcessed);
+                    if (alreadyProcessed) {
+                        eligible.setStatusMessage("✓ Copied to Pictures/" + destinationSubPath);
+                    } else {
+                        eligible.setStatusMessage(matchedFestival.getTeluguName() + " (" + eval.statusSummary + ")");
+                    }
                     eligible.setLocationLabel(eval.selectedAlias != null ? eval.selectedAlias : ("Date: " + eval.locationSubfolder));
                     if (meta.hasGpsCoordinates()) {
                         eligible.setLatitude(meta.latitude);

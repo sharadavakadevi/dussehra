@@ -266,16 +266,24 @@ public class OrganizePhotosActivity extends AppCompatActivity {
                 failed = result.failedCount;
             }
 
+            for (PhotoItem p : photoList) {
+                if (p.isSelected()) {
+                    p.setAlreadyCopied(true);
+                    p.setSelected(false);
+                }
+            }
+
             runOnUiThread(() -> {
                 progressBar.setVisibility(View.GONE);
                 btnConfirmCopy.setEnabled(true);
                 btnAutoCopyAll.setEnabled(true);
+                adapter.notifyDataSetChanged();
 
                 new AlertDialog.Builder(OrganizePhotosActivity.this)
                         .setTitle("Organization Complete")
-                        .setMessage(String.format("Result:\n• Copied: %d\n• Skipped: %d\n• Failed: %d\n\nAll photos are saved in Pictures/Dussehra_2026/[Devi_Folder]/[Location_Or_Date]/\nOriginal camera photos remain untouched.",
+                        .setMessage(String.format("Result:\n• Copied: %d\n• Skipped: %d\n• Failed: %d\n\nAll copied photos are now highlighted in green with checkmark badges.\nOriginal camera photos remain untouched.",
                                 copied, skipped, failed))
-                        .setPositiveButton("OK", (dialog, which) -> finish())
+                        .setPositiveButton("OK", null)
                         .show();
             });
         });
@@ -296,11 +304,48 @@ public class OrganizePhotosActivity extends AppCompatActivity {
             holder.tvPhotoFileName.setText(item.getFileName());
             holder.tvCaptureDate.setText("Captured: " + item.getCaptureDateFormatted());
             holder.tvDestinationFolder.setText("Path: " + item.getDestinationFolderName());
-            holder.tvStatusBadge.setText(item.getStatusMessage());
 
-            holder.cbSelectPhoto.setOnCheckedChangeListener(null);
-            holder.cbSelectPhoto.setChecked(item.isSelected());
-            holder.cbSelectPhoto.setOnCheckedChangeListener((buttonView, isChecked) -> item.setSelected(isChecked));
+            // Check if photo is already copied to destination
+            boolean isCopied = item.isAlreadyCopied()
+                    || (MODE_FESTIVAL.equals(currentMode)
+                            ? historyRepository.isPhotoProcessedForFestival(item.getId(), item.getFileName(), item.getFileSize())
+                            : historyRepository.isPhotoProcessedForLocation(item.getId(), item.getFileName(), item.getFileSize()));
+
+            if (isCopied) {
+                // Apply distinct green highlight to the copied card
+                if (holder.cardPhotoItem != null) {
+                    holder.cardPhotoItem.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(OrganizePhotosActivity.this, R.color.copied_card_bg));
+                    holder.cardPhotoItem.setStrokeColor(androidx.core.content.ContextCompat.getColor(OrganizePhotosActivity.this, R.color.copied_card_stroke));
+                    holder.cardPhotoItem.setStrokeWidth((int) (2.5f * getResources().getDisplayMetrics().density));
+                }
+                if (holder.tvCopiedBadge != null) {
+                    holder.tvCopiedBadge.setVisibility(View.VISIBLE);
+                }
+                holder.tvStatusBadge.setText("✓ Copied to Pictures/" + item.getDestinationFolderName());
+                holder.tvStatusBadge.setTextColor(androidx.core.content.ContextCompat.getColor(OrganizePhotosActivity.this, R.color.copied_badge_text));
+
+                // Disable selection of already copied photo to prevent accidental duplicate copying
+                holder.cbSelectPhoto.setOnCheckedChangeListener(null);
+                holder.cbSelectPhoto.setChecked(false);
+                holder.cbSelectPhoto.setEnabled(false);
+            } else {
+                // Default uncopied card styling
+                if (holder.cardPhotoItem != null) {
+                    holder.cardPhotoItem.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(OrganizePhotosActivity.this, R.color.white));
+                    holder.cardPhotoItem.setStrokeColor(androidx.core.content.ContextCompat.getColor(OrganizePhotosActivity.this, R.color.card_border));
+                    holder.cardPhotoItem.setStrokeWidth((int) (1 * getResources().getDisplayMetrics().density));
+                }
+                if (holder.tvCopiedBadge != null) {
+                    holder.tvCopiedBadge.setVisibility(View.GONE);
+                }
+                holder.tvStatusBadge.setText(item.getStatusMessage());
+                holder.tvStatusBadge.setTextColor(androidx.core.content.ContextCompat.getColor(OrganizePhotosActivity.this, R.color.status_success));
+
+                holder.cbSelectPhoto.setEnabled(true);
+                holder.cbSelectPhoto.setOnCheckedChangeListener(null);
+                holder.cbSelectPhoto.setChecked(item.isSelected());
+                holder.cbSelectPhoto.setOnCheckedChangeListener((buttonView, isChecked) -> item.setSelected(isChecked));
+            }
 
             if (item.getUri() != null) {
                 Glide.with(OrganizePhotosActivity.this)
@@ -318,21 +363,25 @@ public class OrganizePhotosActivity extends AppCompatActivity {
     }
 
     private static class PhotoViewHolder extends RecyclerView.ViewHolder {
+        com.google.android.material.card.MaterialCardView cardPhotoItem;
         CheckBox cbSelectPhoto;
         ImageView ivThumbnail;
         TextView tvPhotoFileName;
         TextView tvCaptureDate;
         TextView tvDestinationFolder;
         TextView tvStatusBadge;
+        TextView tvCopiedBadge;
 
         public PhotoViewHolder(@NonNull View itemView) {
             super(itemView);
+            cardPhotoItem = itemView.findViewById(R.id.cardPhotoItem);
             cbSelectPhoto = itemView.findViewById(R.id.cbSelectPhoto);
             ivThumbnail = itemView.findViewById(R.id.ivThumbnail);
             tvPhotoFileName = itemView.findViewById(R.id.tvPhotoFileName);
             tvCaptureDate = itemView.findViewById(R.id.tvCaptureDate);
             tvDestinationFolder = itemView.findViewById(R.id.tvDestinationFolder);
             tvStatusBadge = itemView.findViewById(R.id.tvStatusBadge);
+            tvCopiedBadge = itemView.findViewById(R.id.tvCopiedBadge);
         }
     }
 }

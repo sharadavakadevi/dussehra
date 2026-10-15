@@ -24,6 +24,12 @@
     <color name="status_warning">#EF6C00</color>
     <color name="status_error">#C62828</color>
 
+    <!-- Copied Highlight Colors -->
+    <color name="copied_card_bg">#F0FDF4</color>
+    <color name="copied_card_stroke">#16A34A</color>
+    <color name="copied_badge_bg">#DCFCE7</color>
+    <color name="copied_badge_text">#15803D</color>
+
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
     <color name="divider_color">#EFE6DC</color>

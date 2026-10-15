@@ -101,7 +101,16 @@ export const ApkDownloadModal: React.FC<ApkDownloadModalProps> = ({
               className="w-full py-2 px-3 bg-white hover:bg-stone-100 text-stone-800 font-semibold rounded-xl text-xs flex items-center justify-center space-x-2 border border-stone-300 transition-colors"
             >
               <FileCode className="w-4 h-4 text-stone-500" />
-              <span>Download Project Source ZIP (106 KB)</span>
+              <span>Download Project Source ZIP (114 KB)</span>
+            </a>
+
+            <a
+              href="/fix-duplicates.patch"
+              download="fix-duplicates.patch"
+              className="w-full py-2 px-3 bg-white hover:bg-stone-100 text-stone-700 font-medium rounded-xl text-xs flex items-center justify-center space-x-2 border border-stone-200 transition-colors"
+            >
+              <FileCode className="w-4 h-4 text-emerald-600" />
+              <span>Download Git Patch (fix-duplicates.patch)</span>
             </a>
           </div>
 

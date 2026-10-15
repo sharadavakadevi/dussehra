@@ -48,6 +48,25 @@ public class SettingsActivity extends AppCompatActivity {
         switchIncludeVideos = findViewById(R.id.switchIncludeVideos);
         btnConfigureLocations = findViewById(R.id.btnConfigureLocations);
         btnManagePairing = findViewById(R.id.btnManagePairing);
+        MaterialButton btnCleanDuplicates = findViewById(R.id.btnCleanDuplicates);
+
+        if (btnCleanDuplicates != null) {
+            btnCleanDuplicates.setOnClickListener(v -> {
+                btnCleanDuplicates.setEnabled(false);
+                btnCleanDuplicates.setText("Cleaning duplicates...");
+                new com.example.dussehraphotoorganizer.util.DuplicateCleanupHelper(this).cleanDuplicates((removedCount, freedBytes, msg) -> {
+                    runOnUiThread(() -> {
+                        btnCleanDuplicates.setEnabled(true);
+                        btnCleanDuplicates.setText(R.string.btn_clean_duplicates);
+                        new androidx.appcompat.app.AlertDialog.Builder(SettingsActivity.this)
+                                .setTitle("Duplicate Cleanup")
+                                .setMessage(msg)
+                                .setPositiveButton("OK", null)
+                                .show();
+                    });
+                });
+            });
+        }
 
         switchAutoLocationOrganize.setChecked(historyRepository.isAutoLocationOrganizeEnabled());
         switchAutoOrganize.setChecked(historyRepository.isAutoOrganizeEnabled());

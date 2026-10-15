@@ -107,6 +107,18 @@ public class PhotoDestinationSaver {
         ContentResolver resolver = context.getContentResolver();
         boolean saved = false;
 
+        // Check if destination directory already contains this photo
+        File picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+        File mainDir = new File(picturesDir, AlankaramSchedule.MAIN_FOLDER_NAME);
+        File targetSubDir = new File(mainDir, subfolder);
+
+        if (isAlreadySaved(resolver, displayName, relativeFolderPath, targetSubDir)) {
+            Log.d(TAG, "Photo already exists at destination, skipping duplicate insert: " + displayName);
+            syncLedgerRepository.recordIncomingPhotoReceived(header.sha256);
+            historyRepository.recordProcessedPhotoForLocation(0, displayName, header.fileSize);
+            return true;
+        }
+
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 // Scoped MediaStore Public Directory insertion
@@ -162,23 +174,21 @@ public class PhotoDestinationSaver {
 
                 File destinationFile = new File(targetSubDir, displayName);
                 if (destinationFile.exists()) {
-                    String baseName = displayName.contains(".") ? displayName.substring(0, displayName.lastIndexOf('.')) : displayName;
-                    String ext = displayName.contains(".") ? displayName.substring(displayName.lastIndexOf('.')) : ".jpg";
-                    destinationFile = new File(targetSubDir, baseName + "_" + System.currentTimeMillis() + ext);
-                }
-
-                try (InputStream in = new FileInputStream(tempFile);
-                     OutputStream out = new FileOutputStream(destinationFile)) {
-                    byte[] buffer = new byte[16384];
-                    int len;
-                    while ((len = in.read(buffer)) > 0) {
-                        out.write(buffer, 0, len);
+                    saved = true;
+                } else {
+                    try (InputStream in = new FileInputStream(tempFile);
+                         OutputStream out = new FileOutputStream(destinationFile)) {
+                        byte[] buffer = new byte[16384];
+                        int len;
+                        while ((len = in.read(buffer)) > 0) {
+                            out.write(buffer, 0, len);
+                        }
+                        out.flush();
                     }
-                    out.flush();
-                }
 
-                MediaStore.Images.Media.insertImage(resolver, destinationFile.getAbsolutePath(), destinationFile.getName(), null);
-                saved = true;
+                    MediaStore.Images.Media.insertImage(resolver, destinationFile.getAbsolutePath(), destinationFile.getName(), null);
+                    saved = true;
+                }
             }
 
             if (saved) {
@@ -197,5 +207,36 @@ public class PhotoDestinationSaver {
         }
 
         return saved;
+    }
+
+    private boolean isAlreadySaved(ContentResolver resolver, String displayName, String relativeFolderPath, File targetSubDir) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            String cleanRelPath = relativeFolderPath.endsWith("/") ? relativeFolderPath : (relativeFolderPath + "/");
+            String altRelPath = relativeFolderPath.endsWith("/") ? relativeFolderPath.substring(0, relativeFolderPath.length() - 1) : relativeFolderPath;
+            String selection = MediaStore.Images.Media.DISPLAY_NAME + "=? AND (" +
+                    MediaStore.Images.Media.RELATIVE_PATH + "=? OR " +
+                    MediaStore.Images.Media.RELATIVE_PATH + "=?)";
+            String[] selectionArgs = new String[]{displayName, cleanRelPath, altRelPath};
+
+            try (android.database.Cursor cursor = resolver.query(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    new String[]{MediaStore.Images.Media._ID},
+                    selection,
+                    selectionArgs,
+                    null
+            )) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    return true;
+                }
+            } catch (Exception ignored) {}
+        }
+
+        if (targetSubDir != null && targetSubDir.exists()) {
+            File dest = new File(targetSubDir, displayName);
+            if (dest.exists()) {
+                return true;
+            }
+        }
+        return false;
     }
 }

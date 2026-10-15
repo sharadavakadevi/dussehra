@@ -99,25 +99,30 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
             <div
               key={photo.id}
               onClick={() => setPreviewPhoto(photo)}
-              className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-xs hover:shadow-md cursor-pointer group transition-all"
+              className="bg-white rounded-xl border-2 border-emerald-500/80 overflow-hidden shadow-xs hover:shadow-md cursor-pointer group transition-all relative ring-2 ring-emerald-400/20"
             >
+              {/* Highlight badge for copied photo in gallery */}
+              <div className="absolute top-2 left-2 z-10 bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow flex items-center space-x-1 uppercase tracking-wider">
+                <span>✓ COPIED</span>
+              </div>
+
               <div className="aspect-square bg-stone-100 relative overflow-hidden">
                 <img
                   src={photo.previewUrl}
                   alt={photo.fileName}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2 flex flex-col justify-end text-white text-[10px]">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2 flex flex-col justify-end text-white text-[10px]">
                   <span className="font-mono truncate">{photo.fileName}</span>
-                  <span className="text-amber-300">{photo.destinationFolder}</span>
+                  <span className="text-emerald-300 font-semibold">{photo.destinationFolder}</span>
                 </div>
               </div>
-              <div className="p-2 text-[11px]">
+              <div className="p-2 text-[11px] bg-emerald-50/40">
                 <p className="font-mono text-stone-900 truncate font-semibold" title={photo.fileName}>
                   {photo.fileName}
                 </p>
-                <div className="flex items-center justify-between text-stone-500 text-[10px] mt-0.5">
-                  <span className="truncate">{photo.destinationFolder}</span>
+                <div className="flex items-center justify-between text-stone-600 text-[10px] mt-0.5">
+                  <span className="truncate text-emerald-800 font-medium">✓ {photo.destinationFolder}</span>
                   <span>{photo.captureDateFormatted}</span>
                 </div>
               </div>
@@ -132,11 +137,16 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
           <div className="bg-stone-900 text-white rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl border border-stone-700">
             <div className="p-4 border-b border-stone-800 flex items-center justify-between">
               <div className="truncate pr-4">
-                <h3 className="font-mono text-sm font-bold truncate">
-                  {previewPhoto.fileName}
-                </h3>
-                <p className="text-xs text-amber-400">
-                  Target: Pictures/{previewPhoto.rootFolder}/{previewPhoto.destinationFolder}/
+                <div className="flex items-center space-x-2">
+                  <h3 className="font-mono text-sm font-bold truncate">
+                    {previewPhoto.fileName}
+                  </h3>
+                  <span className="bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
+                    ✓ COPIED
+                  </span>
+                </div>
+                <p className="text-xs text-amber-400 mt-0.5">
+                  Location: Pictures/{previewPhoto.rootFolder}/{previewPhoto.destinationFolder}/
                 </p>
               </div>
               <button

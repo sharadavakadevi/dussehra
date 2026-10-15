@@ -116,11 +116,8 @@ public class LocationPhotoScanner {
                         continue;
                     }
 
-                    // 2. Duplicate Prevention: check if already organized in Location pipeline
-                    if (historyRepository.isPhotoProcessedForLocation(id, displayName, size)) {
-                        skippedCount++;
-                        continue;
-                    }
+                    // 2. Duplicate Check: Check if already organized in Location pipeline
+                    boolean alreadyProcessed = historyRepository.isPhotoProcessedForLocation(id, displayName, size);
 
                     // 3. Extract Full EXIF Metadata (Date & GPS)
                     PhotoMetadataReader.PhotoFullMetadata meta = metadataReader.extractFullMetadata(contentUri, dateTaken);
@@ -148,7 +145,7 @@ public class LocationPhotoScanner {
                     // Destination subpath: e.g. "Sri_Gayatri_Devi/Home" or "Other_Dates/Home" or "Sri_Gayatri_Devi/2026-10-12"
                     String destinationSubPath = eval.deviParentFolder + "/" + eval.locationSubfolder;
 
-                    // Create eligible PhotoItem
+                    // Create eligible PhotoItem with alreadyCopied status for visual highlighting
                     PhotoItem eligible = new PhotoItem(
                             id,
                             displayName,
@@ -160,7 +157,14 @@ public class LocationPhotoScanner {
                             true
                     );
                     eligible.setRootDirectory(AlankaramSchedule.MAIN_FOLDER_NAME);
-                    eligible.setStatusMessage(eval.statusSummary);
+                    eligible.setFileSize(size);
+                    eligible.setAlreadyCopied(alreadyProcessed);
+                    eligible.setSelected(!alreadyProcessed); // Unselected if already copied to prevent redundant copying
+                    if (alreadyProcessed) {
+                        eligible.setStatusMessage("✓ Copied to Pictures/" + destinationSubPath);
+                    } else {
+                        eligible.setStatusMessage(eval.statusSummary);
+                    }
                     eligible.setLocationLabel(eval.selectedAlias != null ? eval.selectedAlias : ("Date: " + eval.locationSubfolder));
                     if (meta.hasGpsCoordinates()) {
                         eligible.setLatitude(meta.latitude);

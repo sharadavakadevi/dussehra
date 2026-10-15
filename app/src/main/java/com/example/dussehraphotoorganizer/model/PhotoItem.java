@@ -14,13 +14,16 @@ public class PhotoItem implements Serializable {
     private String rootDirectory; // "Dussehra_2026" or "Location_Organized"
     private boolean isCameraPhoto;
     private boolean isSelected;
+    private boolean isAlreadyCopied;
     private String statusMessage;
+    private long fileSize;
     private Double latitude;
     private Double longitude;
     private String locationLabel;
 
     public PhotoItem() {
         this.isSelected = true;
+        this.isAlreadyCopied = false;
     }
 
     public PhotoItem(long id, String fileName, String filePath, Uri uri, long captureTimestamp, String captureDateFormatted, String destinationFolderName, boolean isCameraPhoto) {
@@ -151,5 +154,21 @@ public class PhotoItem implements Serializable {
 
     public void setLocationLabel(String locationLabel) {
         this.locationLabel = locationLabel;
+    }
+
+    public long getFileSize() {
+        return fileSize;
+    }
+
+    public void setFileSize(long fileSize) {
+        this.fileSize = fileSize;
+    }
+
+    public boolean isAlreadyCopied() {
+        return isAlreadyCopied;
+    }
+
+    public void setAlreadyCopied(boolean alreadyCopied) {
+        this.isAlreadyCopied = alreadyCopied;
     }
 }

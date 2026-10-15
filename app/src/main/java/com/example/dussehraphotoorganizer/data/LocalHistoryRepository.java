@@ -17,11 +17,13 @@ public class LocalHistoryRepository {
     // Festival processing history
     private static final String KEY_PROCESSED_MEDIA_IDS = "key_processed_media_ids";
     private static final String KEY_PROCESSED_FILE_SIGNATURES = "key_processed_file_signatures";
+    private static final String KEY_PROCESSED_FILE_NAMES = "key_processed_file_names";
     private static final String KEY_LAST_RUN_SUMMARY = "key_last_run_summary";
 
     // Location processing history
     private static final String KEY_LOC_PROCESSED_MEDIA_IDS = "key_loc_processed_media_ids";
     private static final String KEY_LOC_PROCESSED_FILE_SIGNATURES = "key_loc_processed_file_signatures";
+    private static final String KEY_LOC_PROCESSED_FILE_NAMES = "key_loc_processed_file_names";
     private static final String KEY_LAST_LOC_RUN_SUMMARY = "key_last_loc_run_summary";
     private static final String KEY_AUTO_LOCATION_ORGANIZE = "key_auto_location_organize";
 
@@ -40,26 +42,48 @@ public class LocalHistoryRepository {
     // Festival Processing
     // ==========================================
     public boolean isPhotoAlreadyProcessed(long mediaId, String fileName, long size) {
-        Set<String> idSet = prefs.getStringSet(KEY_PROCESSED_MEDIA_IDS, new HashSet<>());
-        if (idSet.contains(String.valueOf(mediaId))) {
-            return true;
+        if (fileName != null && !fileName.isEmpty()) {
+            Set<String> nameSet = prefs.getStringSet(KEY_PROCESSED_FILE_NAMES, new HashSet<>());
+            if (nameSet.contains(fileName)) {
+                return true;
+            }
+        }
+        if (mediaId > 0) {
+            Set<String> idSet = prefs.getStringSet(KEY_PROCESSED_MEDIA_IDS, new HashSet<>());
+            if (idSet.contains(String.valueOf(mediaId))) {
+                return true;
+            }
         }
         Set<String> sigSet = prefs.getStringSet(KEY_PROCESSED_FILE_SIGNATURES, new HashSet<>());
-        String signature = fileName + "_" + size;
-        return sigSet.contains(signature);
+        if (sigSet.contains(fileName + "_" + size)) {
+            return true;
+        }
+        if (size > 0 && sigSet.contains(fileName + "_0")) {
+            return true;
+        }
+        return false;
     }
 
     public synchronized void recordProcessedPhoto(long mediaId, String fileName, long size) {
-        Set<String> idSet = new HashSet<>(prefs.getStringSet(KEY_PROCESSED_MEDIA_IDS, new HashSet<>()));
-        idSet.add(String.valueOf(mediaId));
+        SharedPreferences.Editor editor = prefs.edit();
 
-        Set<String> sigSet = new HashSet<>(prefs.getStringSet(KEY_PROCESSED_FILE_SIGNATURES, new HashSet<>()));
-        sigSet.add(fileName + "_" + size);
+        if (mediaId > 0) {
+            Set<String> idSet = new HashSet<>(prefs.getStringSet(KEY_PROCESSED_MEDIA_IDS, new HashSet<>()));
+            idSet.add(String.valueOf(mediaId));
+            editor.putStringSet(KEY_PROCESSED_MEDIA_IDS, idSet);
+        }
 
-        prefs.edit()
-                .putStringSet(KEY_PROCESSED_MEDIA_IDS, idSet)
-                .putStringSet(KEY_PROCESSED_FILE_SIGNATURES, sigSet)
-                .apply();
+        if (fileName != null && !fileName.isEmpty()) {
+            Set<String> nameSet = new HashSet<>(prefs.getStringSet(KEY_PROCESSED_FILE_NAMES, new HashSet<>()));
+            nameSet.add(fileName);
+            editor.putStringSet(KEY_PROCESSED_FILE_NAMES, nameSet);
+
+            Set<String> sigSet = new HashSet<>(prefs.getStringSet(KEY_PROCESSED_FILE_SIGNATURES, new HashSet<>()));
+            sigSet.add(fileName + "_" + size);
+            editor.putStringSet(KEY_PROCESSED_FILE_SIGNATURES, sigSet);
+        }
+
+        editor.apply();
     }
 
     public void setLastRunSummary(String summary) {
@@ -74,26 +98,48 @@ public class LocalHistoryRepository {
     // Location Processing
     // ==========================================
     public boolean isPhotoProcessedForLocation(long mediaId, String fileName, long size) {
-        Set<String> idSet = prefs.getStringSet(KEY_LOC_PROCESSED_MEDIA_IDS, new HashSet<>());
-        if (idSet.contains(String.valueOf(mediaId))) {
-            return true;
+        if (fileName != null && !fileName.isEmpty()) {
+            Set<String> nameSet = prefs.getStringSet(KEY_LOC_PROCESSED_FILE_NAMES, new HashSet<>());
+            if (nameSet.contains(fileName)) {
+                return true;
+            }
+        }
+        if (mediaId > 0) {
+            Set<String> idSet = prefs.getStringSet(KEY_LOC_PROCESSED_MEDIA_IDS, new HashSet<>());
+            if (idSet.contains(String.valueOf(mediaId))) {
+                return true;
+            }
         }
         Set<String> sigSet = prefs.getStringSet(KEY_LOC_PROCESSED_FILE_SIGNATURES, new HashSet<>());
-        String signature = fileName + "_" + size;
-        return sigSet.contains(signature);
+        if (sigSet.contains(fileName + "_" + size)) {
+            return true;
+        }
+        if (size > 0 && sigSet.contains(fileName + "_0")) {
+            return true;
+        }
+        return false;
     }
 
     public synchronized void recordProcessedPhotoForLocation(long mediaId, String fileName, long size) {
-        Set<String> idSet = new HashSet<>(prefs.getStringSet(KEY_LOC_PROCESSED_MEDIA_IDS, new HashSet<>()));
-        idSet.add(String.valueOf(mediaId));
+        SharedPreferences.Editor editor = prefs.edit();
 
-        Set<String> sigSet = new HashSet<>(prefs.getStringSet(KEY_LOC_PROCESSED_FILE_SIGNATURES, new HashSet<>()));
-        sigSet.add(fileName + "_" + size);
+        if (mediaId > 0) {
+            Set<String> idSet = new HashSet<>(prefs.getStringSet(KEY_LOC_PROCESSED_MEDIA_IDS, new HashSet<>()));
+            idSet.add(String.valueOf(mediaId));
+            editor.putStringSet(KEY_LOC_PROCESSED_MEDIA_IDS, idSet);
+        }
 
-        prefs.edit()
-                .putStringSet(KEY_LOC_PROCESSED_MEDIA_IDS, idSet)
-                .putStringSet(KEY_LOC_PROCESSED_FILE_SIGNATURES, sigSet)
-                .apply();
+        if (fileName != null && !fileName.isEmpty()) {
+            Set<String> nameSet = new HashSet<>(prefs.getStringSet(KEY_LOC_PROCESSED_FILE_NAMES, new HashSet<>()));
+            nameSet.add(fileName);
+            editor.putStringSet(KEY_LOC_PROCESSED_FILE_NAMES, nameSet);
+
+            Set<String> sigSet = new HashSet<>(prefs.getStringSet(KEY_LOC_PROCESSED_FILE_SIGNATURES, new HashSet<>()));
+            sigSet.add(fileName + "_" + size);
+            editor.putStringSet(KEY_LOC_PROCESSED_FILE_SIGNATURES, sigSet);
+        }
+
+        editor.apply();
     }
 
     public void setLastLocationRunSummary(String summary) {
