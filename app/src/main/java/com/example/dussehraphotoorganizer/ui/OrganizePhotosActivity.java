@@ -25,6 +25,7 @@ import com.example.dussehraphotoorganizer.organizer.PhotoOrganizer;
 import com.example.dussehraphotoorganizer.scanner.LocationPhotoScanner;
 import com.example.dussehraphotoorganizer.scanner.PhotoScanner;
 import com.example.dussehraphotoorganizer.schedule.AlankaramSchedule;
+import com.example.dussehraphotoorganizer.util.PermissionHelper;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
