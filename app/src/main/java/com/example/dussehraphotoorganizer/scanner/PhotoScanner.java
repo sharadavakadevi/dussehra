@@ -53,6 +53,7 @@ public class PhotoScanner {
                     MediaStore.Images.Media._ID,
                     MediaStore.Images.Media.DISPLAY_NAME,
                     MediaStore.Images.Media.RELATIVE_PATH,
+                    MediaStore.Images.Media.DATA,
                     MediaStore.Images.Media.DATE_TAKEN,
                     MediaStore.Images.Media.SIZE
             };
@@ -79,9 +80,10 @@ public class PhotoScanner {
             if (cursor != null) {
                 int idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID);
                 int nameCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME);
-                int pathCol = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
-                        ? cursor.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)
-                        : cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
+                int relPathCol = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                        ? cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+                        : -1;
+                int dataCol = cursor.getColumnIndex(MediaStore.Images.Media.DATA);
                 int dateTakenCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN);
                 int sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE);
 
@@ -89,7 +91,12 @@ public class PhotoScanner {
                     totalScanned++;
                     long id = cursor.getLong(idCol);
                     String displayName = cursor.getString(nameCol);
-                    String path = cursor.getString(pathCol);
+                    
+                    String path = (relPathCol != -1) ? cursor.getString(relPathCol) : null;
+                    if ((path == null || path.trim().isEmpty()) && dataCol != -1) {
+                        path = cursor.getString(dataCol);
+                    }
+                    
                     long dateTaken = cursor.getLong(dateTakenCol);
                     long size = cursor.getLong(sizeCol);
 

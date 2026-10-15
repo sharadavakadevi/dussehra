@@ -59,6 +59,7 @@ public class LocationPhotoScanner {
                     MediaStore.Images.Media._ID,
                     MediaStore.Images.Media.DISPLAY_NAME,
                     MediaStore.Images.Media.RELATIVE_PATH,
+                    MediaStore.Images.Media.DATA,
                     MediaStore.Images.Media.DATE_TAKEN,
                     MediaStore.Images.Media.SIZE
             };
@@ -85,9 +86,10 @@ public class LocationPhotoScanner {
             if (cursor != null) {
                 int idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID);
                 int nameCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME);
-                int pathCol = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
-                        ? cursor.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)
-                        : cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
+                int relPathCol = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                        ? cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+                        : -1;
+                int dataCol = cursor.getColumnIndex(MediaStore.Images.Media.DATA);
                 int dateTakenCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN);
                 int sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE);
 
@@ -95,7 +97,13 @@ public class LocationPhotoScanner {
                     totalScanned++;
                     long id = cursor.getLong(idCol);
                     String displayName = cursor.getString(nameCol);
-                    String path = cursor.getString(pathCol);
+                    
+                    // Robust path extraction: try RELATIVE_PATH, fallback to DATA
+                    String path = (relPathCol != -1) ? cursor.getString(relPathCol) : null;
+                    if ((path == null || path.trim().isEmpty()) && dataCol != -1) {
+                        path = cursor.getString(dataCol);
+                    }
+                    
                     long dateTaken = cursor.getLong(dateTakenCol);
                     long size = cursor.getLong(sizeCol);
 
@@ -117,7 +125,7 @@ public class LocationPhotoScanner {
                     // 3. Extract Full EXIF Metadata (Date & GPS)
                     PhotoMetadataReader.PhotoFullMetadata meta = metadataReader.extractFullMetadata(contentUri, dateTaken);
 
-                    // Check capture date validity: if missing, skip and record for review rather than guessing
+                    // Check capture date validity: if missing, record for review rather than guessing
                     if (!meta.hasValidCaptureDate()) {
                         PhotoItem unverified = new PhotoItem(id, displayName, path, contentUri, 0, "Unknown", null, true);
                         unverified.setRootDirectory(AlankaramSchedule.MAIN_FOLDER_NAME);
@@ -127,14 +135,9 @@ public class LocationPhotoScanner {
                         continue;
                     }
 
-                    // 4. Strict Dussehra Festival Date Check
-                    FestivalDateItem matchedFestival = schedule.getFestivalDateItem(meta.formattedDate);
-                    if (matchedFestival == null) {
-                        skippedCount++;
-                        continue;
-                    }
-
-                    // 5. Evaluate Destination path under Pictures/Dussehra_2026/
+                    // 4. Evaluate Destination path under Pictures/Dussehra_2026/
+                    // Uses LocationConfigManager to map to Devi Alankaram folder if on festival date,
+                    // or to Other_Dates folder if outside festival schedule.
                     LocationConfigManager.EvaluationResult eval = locationConfigManager.evaluatePhotoDestination(
                             meta.latitude,
                             meta.longitude,
@@ -142,8 +145,8 @@ public class LocationPhotoScanner {
                             meta.isoFormattedDate
                     );
 
-                    // Destination subpath: e.g. "Sri_Gayatri_Devi/Home" or "Sri_Gayatri_Devi/2026-10-12"
-                    String destinationSubPath = matchedFestival.getFolderName() + "/" + eval.locationSubfolder;
+                    // Destination subpath: e.g. "Sri_Gayatri_Devi/Home" or "Other_Dates/Home" or "Sri_Gayatri_Devi/2026-10-12"
+                    String destinationSubPath = eval.deviParentFolder + "/" + eval.locationSubfolder;
 
                     // Create eligible PhotoItem
                     PhotoItem eligible = new PhotoItem(

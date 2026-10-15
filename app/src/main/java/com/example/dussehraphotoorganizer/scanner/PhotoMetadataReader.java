@@ -92,6 +92,29 @@ public class PhotoMetadataReader {
     }
 
     /**
+     * Helper to parse date strings across common camera EXIF formatting variations
+     */
+    private Date parseExifDate(String dateStr) {
+        if (dateStr == null || dateStr.trim().isEmpty()) return null;
+        String trimmed = dateStr.trim();
+        String[] patterns = new String[]{
+                "yyyy:MM:dd HH:mm:ss",
+                "yyyy-MM-dd HH:mm:ss",
+                "yyyy/MM/dd HH:mm:ss",
+                "yyyy:MM:dd",
+                "yyyy-MM-dd"
+        };
+        for (String pattern : patterns) {
+            try {
+                SimpleDateFormat sdf = new SimpleDateFormat(pattern, Locale.US);
+                Date d = sdf.parse(trimmed);
+                if (d != null) return d;
+            } catch (Exception ignored) {}
+        }
+        return null;
+    }
+
+    /**
      * Extracts comprehensive EXIF metadata including original capture date (both dd-MM-yyyy and yyyy-MM-dd)
      * and GPS coordinates without geographic redaction.
      */
@@ -106,10 +129,14 @@ public class PhotoMetadataReader {
         if (photoUri != null) {
             Uri targetUri = photoUri;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                try {
-                    targetUri = MediaStore.setRequireOriginal(photoUri);
-                } catch (Exception ignored) {
-                    targetUri = photoUri;
+                boolean hasLocationPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                        context, android.Manifest.permission.ACCESS_MEDIA_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED;
+                if (hasLocationPermission) {
+                    try {
+                        targetUri = MediaStore.setRequireOriginal(photoUri);
+                    } catch (Exception ignored) {
+                        targetUri = photoUri;
+                    }
                 }
             }
 
@@ -117,13 +144,16 @@ public class PhotoMetadataReader {
                 if (is != null) {
                     ExifInterface exif = new ExifInterface(is);
 
-                    // 1. Parse Capture Date
+                    // 1. Parse Capture Date from multiple standard EXIF tags
                     String exifDateStr = exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL);
                     if (exifDateStr == null) {
                         exifDateStr = exif.getAttribute(ExifInterface.TAG_DATETIME_DIGITIZED);
                     }
+                    if (exifDateStr == null) {
+                        exifDateStr = exif.getAttribute(ExifInterface.TAG_DATETIME);
+                    }
                     if (exifDateStr != null && !exifDateStr.trim().isEmpty()) {
-                        Date parsed = exifDateFormat.parse(exifDateStr.trim());
+                        Date parsed = parseExifDate(exifDateStr);
                         if (parsed != null) {
                             timestamp = parsed.getTime();
                             formattedDate = displayDateFormat.format(parsed);
@@ -146,8 +176,14 @@ public class PhotoMetadataReader {
                         if (fallbackIs != null) {
                             ExifInterface exif = new ExifInterface(fallbackIs);
                             String exifDateStr = exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL);
+                            if (exifDateStr == null) {
+                                exifDateStr = exif.getAttribute(ExifInterface.TAG_DATETIME_DIGITIZED);
+                            }
+                            if (exifDateStr == null) {
+                                exifDateStr = exif.getAttribute(ExifInterface.TAG_DATETIME);
+                            }
                             if (exifDateStr != null && !exifDateStr.trim().isEmpty()) {
-                                Date parsed = exifDateFormat.parse(exifDateStr.trim());
+                                Date parsed = parseExifDate(exifDateStr);
                                 if (parsed != null) {
                                     timestamp = parsed.getTime();
                                     formattedDate = displayDateFormat.format(parsed);
@@ -168,8 +204,13 @@ public class PhotoMetadataReader {
 
         // MediaStore Date Taken fallback (creation time recorded by camera service)
         if (formattedDate == null && mediaStoreDateTaken > 0) {
-            timestamp = mediaStoreDateTaken;
-            Date d = new Date(mediaStoreDateTaken);
+            long ms = mediaStoreDateTaken;
+            // Handle timestamps stored in seconds instead of milliseconds
+            if (ms < 100000000000L) {
+                ms *= 1000L;
+            }
+            timestamp = ms;
+            Date d = new Date(ms);
             formattedDate = displayDateFormat.format(d);
             isoFormattedDate = isoDateFormat.format(d);
             source = "MediaStore Creation Time";
@@ -212,7 +253,7 @@ public class PhotoMetadataReader {
         }
 
         public boolean hasValidCaptureDate() {
-            return isoFormattedDate != null && !isoFormattedDate.isEmpty() && timestamp > 0;
+            return (formattedDate != null && !formattedDate.isEmpty()) || (isoFormattedDate != null && !isoFormattedDate.isEmpty());
         }
 
         public boolean hasGpsCoordinates() {

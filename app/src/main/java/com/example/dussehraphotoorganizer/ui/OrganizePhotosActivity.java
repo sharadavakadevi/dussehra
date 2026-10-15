@@ -118,7 +118,23 @@ public class OrganizePhotosActivity extends AppCompatActivity {
         btnAutoCopyAll.setOnClickListener(v -> executeAutoCopyAll());
 
         updateModeUi();
-        startScanning();
+        if (!PermissionHelper.hasAllPermissions(this)) {
+            PermissionHelper.requestPermissions(this);
+        } else {
+            startScanning();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PermissionHelper.REQUEST_CODE_PERMISSIONS) {
+            if (PermissionHelper.hasAllPermissions(this)) {
+                startScanning();
+            } else {
+                Toast.makeText(this, "Storage/Photos permission required to access DCIM/Camera photos.", Toast.LENGTH_LONG).show();
+            }
+        }
     }
 
     private void updateModeUi() {
