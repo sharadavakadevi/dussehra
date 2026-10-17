@@ -161,9 +161,6 @@ public class PhotoDestinationSaver {
 
             } else {
                 // Legacy public external storage
-                File picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
-                File mainDir = new File(picturesDir, AlankaramSchedule.MAIN_FOLDER_NAME);
-                File targetSubDir = new File(mainDir, subfolder);
                 if (!targetSubDir.exists()) {
                     boolean created = targetSubDir.mkdirs();
                     if (!created && !targetSubDir.exists()) {

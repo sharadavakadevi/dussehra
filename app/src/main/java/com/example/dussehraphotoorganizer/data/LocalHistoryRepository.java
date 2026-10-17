@@ -64,6 +64,10 @@ public class LocalHistoryRepository {
         return false;
     }
 
+    public boolean isPhotoProcessedForFestival(long mediaId, String fileName, long size) {
+        return isPhotoAlreadyProcessed(mediaId, fileName, size);
+    }
+
     public synchronized void recordProcessedPhoto(long mediaId, String fileName, long size) {
         SharedPreferences.Editor editor = prefs.edit();
 
