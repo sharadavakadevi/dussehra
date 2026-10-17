@@ -18,11 +18,12 @@ export const SAMPLE_CAMERA_PHOTOS: OrganizedPhoto[] = [
     longitude: 83.361830,
     distanceMeters: 1.2,
     locationLabel: 'Home',
-    statusMessage: '✓ Copied to Pictures/Sri_Bala_Tripura_Sundari_Devi/Home/',
+    statusMessage: '📍 Local photo organized to Pictures/Sri_Bala_Tripura_Sundari_Devi/Home/',
     previewUrl: 'https://images.unsplash.com/photo-1545232979-8bf68ee9b1af?auto=format&fit=crop&w=600&q=80',
-    selected: false,
-    isCopied: true,
-    copiedAt: 1728635712000
+    selected: true,
+    isOrganizedLocally: true,
+    isCopiedFromOtherDevice: false,
+    sourceDeviceName: 'This Device (Local Camera)'
   },
   {
     id: 'sample_2',
@@ -43,7 +44,9 @@ export const SAMPLE_CAMERA_PHOTOS: OrganizedPhoto[] = [
     locationLabel: 'Yeendda Durga Devi Temple',
     statusMessage: '📍 Sri Lakshmi Villa / Yeendda Durga Devi Temple (1.5m <= 40m) -> Sri_Gayatri_Devi/Yeendda_Durga_Devi_Temple/',
     previewUrl: 'https://images.unsplash.com/photo-1609744834135-236f01c897f2?auto=format&fit=crop&w=600&q=80',
-    selected: true
+    selected: true,
+    isCopiedFromOtherDevice: false,
+    sourceDeviceName: 'This Device (Local Camera)'
   },
   {
     id: 'sample_3',
@@ -62,10 +65,11 @@ export const SAMPLE_CAMERA_PHOTOS: OrganizedPhoto[] = [
     longitude: 83.352670,
     distanceMeters: 1.4,
     locationLabel: 'Carshed Bobleam',
-    statusMessage: '✓ Copied to Pictures/Sri_Annapurna_Devi/Carshed_Bobleam/',
+    statusMessage: '✓ Copied from paired device (Pixel 8 Pro via Wi-Fi Sync)',
     previewUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80',
     selected: false,
-    isCopied: true,
+    isCopiedFromOtherDevice: true,
+    sourceDeviceName: 'Pixel 8 Pro (Paired Device)',
     copiedAt: 1728836405000
   },
   {
@@ -87,7 +91,9 @@ export const SAMPLE_CAMERA_PHOTOS: OrganizedPhoto[] = [
     locationLabel: 'Date: 2026-10-14',
     statusMessage: '📅 Unmatched GPS -> Fallback: Sri_Katyayani_Devi/2026-10-14/',
     previewUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80',
-    selected: true
+    selected: true,
+    isCopiedFromOtherDevice: false,
+    sourceDeviceName: 'This Device (Local Camera)'
   },
   {
     id: 'sample_5',
@@ -105,7 +111,9 @@ export const SAMPLE_CAMERA_PHOTOS: OrganizedPhoto[] = [
     locationLabel: 'Date: 2026-10-15',
     statusMessage: '📅 No GPS -> Fallback: Sri_Lalitha_Tripura_Sundari_Devi/2026-10-15/',
     previewUrl: 'https://images.unsplash.com/photo-1516483638261-f4dbaf036963?auto=format&fit=crop&w=600&q=80',
-    selected: true
+    selected: true,
+    isCopiedFromOtherDevice: false,
+    sourceDeviceName: 'This Device (Local Camera)'
   },
   {
     id: 'sample_6',
@@ -126,6 +134,8 @@ export const SAMPLE_CAMERA_PHOTOS: OrganizedPhoto[] = [
     locationLabel: 'Home',
     statusMessage: '📍 Home (0.8m <= 40m) -> Sri_Mahalakshmi_Devi/Home/',
     previewUrl: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=600&q=80',
-    selected: true
+    selected: true,
+    isCopiedFromOtherDevice: false,
+    sourceDeviceName: 'This Device (Local Camera)'
   }
 ];

@@ -15,6 +15,8 @@ public class PhotoItem implements Serializable {
     private boolean isCameraPhoto;
     private boolean isSelected;
     private boolean isAlreadyCopied;
+    private boolean isCopiedFromOtherDevice;
+    private String sourceDeviceName;
     private String statusMessage;
     private long fileSize;
     private Double latitude;
@@ -24,6 +26,7 @@ public class PhotoItem implements Serializable {
     public PhotoItem() {
         this.isSelected = true;
         this.isAlreadyCopied = false;
+        this.isCopiedFromOtherDevice = false;
     }
 
     public PhotoItem(long id, String fileName, String filePath, Uri uri, long captureTimestamp, String captureDateFormatted, String destinationFolderName, boolean isCameraPhoto) {
@@ -170,5 +173,21 @@ public class PhotoItem implements Serializable {
 
     public void setAlreadyCopied(boolean alreadyCopied) {
         this.isAlreadyCopied = alreadyCopied;
+    }
+
+    public boolean isCopiedFromOtherDevice() {
+        return isCopiedFromOtherDevice;
+    }
+
+    public void setCopiedFromOtherDevice(boolean copiedFromOtherDevice) {
+        this.isCopiedFromOtherDevice = copiedFromOtherDevice;
+    }
+
+    public String getSourceDeviceName() {
+        return sourceDeviceName;
+    }
+
+    public void setSourceDeviceName(String sourceDeviceName) {
+        this.sourceDeviceName = sourceDeviceName;
     }
 }

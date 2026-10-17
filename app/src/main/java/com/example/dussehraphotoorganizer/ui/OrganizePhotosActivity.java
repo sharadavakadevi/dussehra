@@ -19,12 +19,14 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.example.dussehraphotoorganizer.R;
+import com.example.dussehraphotoorganizer.data.LocalHistoryRepository;
 import com.example.dussehraphotoorganizer.model.PhotoItem;
 import com.example.dussehraphotoorganizer.organizer.LocationPhotoOrganizer;
 import com.example.dussehraphotoorganizer.organizer.PhotoOrganizer;
 import com.example.dussehraphotoorganizer.scanner.LocationPhotoScanner;
 import com.example.dussehraphotoorganizer.scanner.PhotoScanner;
 import com.example.dussehraphotoorganizer.schedule.AlankaramSchedule;
+import com.example.dussehraphotoorganizer.sync.data.SyncLedgerRepository;
 import com.example.dussehraphotoorganizer.util.PermissionHelper;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
@@ -58,6 +60,8 @@ public class OrganizePhotosActivity extends AppCompatActivity {
     private PhotoOrganizer festivalOrganizer;
     private LocationPhotoScanner locationScanner;
     private LocationPhotoOrganizer locationOrganizer;
+    private LocalHistoryRepository historyRepository;
+    private SyncLedgerRepository syncLedgerRepository;
 
     private final List<PhotoItem> photoList = new ArrayList<>();
     private PhotoAdapter adapter;
@@ -87,6 +91,8 @@ public class OrganizePhotosActivity extends AppCompatActivity {
         festivalOrganizer = new PhotoOrganizer(this);
         locationScanner = new LocationPhotoScanner(this);
         locationOrganizer = new LocationPhotoOrganizer(this);
+        historyRepository = new LocalHistoryRepository(this);
+        syncLedgerRepository = new SyncLedgerRepository(this);
 
         rvEligiblePhotos.setLayoutManager(new LinearLayoutManager(this));
         adapter = new PhotoAdapter();
@@ -281,7 +287,7 @@ public class OrganizePhotosActivity extends AppCompatActivity {
 
                 new AlertDialog.Builder(OrganizePhotosActivity.this)
                         .setTitle("Organization Complete")
-                        .setMessage(String.format("Result:\n• Copied: %d\n• Skipped: %d\n• Failed: %d\n\nAll copied photos are now highlighted in green with checkmark badges.\nOriginal camera photos remain untouched.",
+                        .setMessage(String.format("Result:\n• Processed: %d\n• Skipped: %d\n• Failed: %d\n\nAll selected photos are safely organized into Pictures/Dussehra_2026/.\nOriginal camera photos remain untouched.",
                                 copied, skipped, failed))
                         .setPositiveButton("OK", null)
                         .show();
@@ -305,14 +311,17 @@ public class OrganizePhotosActivity extends AppCompatActivity {
             holder.tvCaptureDate.setText("Captured: " + item.getCaptureDateFormatted());
             holder.tvDestinationFolder.setText("Path: " + item.getDestinationFolderName());
 
-            // Check if photo is already copied to destination
-            boolean isCopied = item.isAlreadyCopied()
-                    || (MODE_FESTIVAL.equals(currentMode)
-                            ? historyRepository.isPhotoProcessedForFestival(item.getId(), item.getFileName(), item.getFileSize())
-                            : historyRepository.isPhotoProcessedForLocation(item.getId(), item.getFileName(), item.getFileSize()));
+            // Check if photo was copied from another device vs organized locally
+            boolean isCopiedFromOtherDevice = item.isCopiedFromOtherDevice()
+                    || (syncLedgerRepository != null && syncLedgerRepository.isPhotoCopiedFromOtherDevice(item.getFileName(), item.getFileSize(), null));
 
-            if (isCopied) {
-                // Apply distinct green highlight to the copied card
+            boolean isAlreadyOrganizedLocally = item.isAlreadyCopied()
+                    || (historyRepository != null && (MODE_FESTIVAL.equals(currentMode)
+                            ? historyRepository.isPhotoProcessedForFestival(item.getId(), item.getFileName(), item.getFileSize())
+                            : historyRepository.isPhotoProcessedForLocation(item.getId(), item.getFileName(), item.getFileSize())));
+
+            if (isCopiedFromOtherDevice) {
+                // Apply distinct green highlight ONLY to photos copied from another device
                 if (holder.cardPhotoItem != null) {
                     holder.cardPhotoItem.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(OrganizePhotosActivity.this, R.color.copied_card_bg));
                     holder.cardPhotoItem.setStrokeColor(androidx.core.content.ContextCompat.getColor(OrganizePhotosActivity.this, R.color.copied_card_stroke));
@@ -320,16 +329,21 @@ public class OrganizePhotosActivity extends AppCompatActivity {
                 }
                 if (holder.tvCopiedBadge != null) {
                     holder.tvCopiedBadge.setVisibility(View.VISIBLE);
+                    String devName = item.getSourceDeviceName();
+                    if (devName == null || devName.isEmpty()) {
+                        devName = syncLedgerRepository != null ? syncLedgerRepository.getPairedDeviceName() : "OTHER DEVICE";
+                    }
+                    holder.tvCopiedBadge.setText("✓ COPIED FROM " + devName.toUpperCase());
                 }
-                holder.tvStatusBadge.setText("✓ Copied to Pictures/" + item.getDestinationFolderName());
+                holder.tvStatusBadge.setText("✓ Copied from paired device to Pictures/" + item.getDestinationFolderName());
                 holder.tvStatusBadge.setTextColor(androidx.core.content.ContextCompat.getColor(OrganizePhotosActivity.this, R.color.copied_badge_text));
 
-                // Disable selection of already copied photo to prevent accidental duplicate copying
+                // Disable selection of already copied cross-device photo
                 holder.cbSelectPhoto.setOnCheckedChangeListener(null);
                 holder.cbSelectPhoto.setChecked(false);
                 holder.cbSelectPhoto.setEnabled(false);
             } else {
-                // Default uncopied card styling
+                // Local camera photo styling (no copied mark/highlight)
                 if (holder.cardPhotoItem != null) {
                     holder.cardPhotoItem.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(OrganizePhotosActivity.this, R.color.white));
                     holder.cardPhotoItem.setStrokeColor(androidx.core.content.ContextCompat.getColor(OrganizePhotosActivity.this, R.color.card_border));
@@ -338,13 +352,21 @@ public class OrganizePhotosActivity extends AppCompatActivity {
                 if (holder.tvCopiedBadge != null) {
                     holder.tvCopiedBadge.setVisibility(View.GONE);
                 }
-                holder.tvStatusBadge.setText(item.getStatusMessage());
-                holder.tvStatusBadge.setTextColor(androidx.core.content.ContextCompat.getColor(OrganizePhotosActivity.this, R.color.status_success));
 
-                holder.cbSelectPhoto.setEnabled(true);
-                holder.cbSelectPhoto.setOnCheckedChangeListener(null);
-                holder.cbSelectPhoto.setChecked(item.isSelected());
-                holder.cbSelectPhoto.setOnCheckedChangeListener((buttonView, isChecked) -> item.setSelected(isChecked));
+                if (isAlreadyOrganizedLocally) {
+                    holder.tvStatusBadge.setText("✓ Organized to Pictures/" + item.getDestinationFolderName());
+                    holder.tvStatusBadge.setTextColor(androidx.core.content.ContextCompat.getColor(OrganizePhotosActivity.this, R.color.status_success));
+                    holder.cbSelectPhoto.setEnabled(false);
+                    holder.cbSelectPhoto.setOnCheckedChangeListener(null);
+                    holder.cbSelectPhoto.setChecked(false);
+                } else {
+                    holder.tvStatusBadge.setText(item.getStatusMessage());
+                    holder.tvStatusBadge.setTextColor(androidx.core.content.ContextCompat.getColor(OrganizePhotosActivity.this, R.color.status_success));
+                    holder.cbSelectPhoto.setEnabled(true);
+                    holder.cbSelectPhoto.setOnCheckedChangeListener(null);
+                    holder.cbSelectPhoto.setChecked(item.isSelected());
+                    holder.cbSelectPhoto.setOnCheckedChangeListener((buttonView, isChecked) -> item.setSelected(isChecked));
+                }
             }
 
             if (item.getUri() != null) {

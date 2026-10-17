@@ -40,6 +40,9 @@ export interface OrganizedPhoto {
   previewUrl: string;
   rawFile?: File;
   selected: boolean;
+  isOrganizedLocally?: boolean;
+  isCopiedFromOtherDevice?: boolean;
+  sourceDeviceName?: string;
   isCopied?: boolean;
   copiedAt?: number;
 }

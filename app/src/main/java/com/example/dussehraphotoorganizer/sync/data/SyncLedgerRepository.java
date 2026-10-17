@@ -43,6 +43,7 @@ public class SyncLedgerRepository {
     // Content Hash Sets
     private static final String KEY_SYNCED_OUTGOING_HASHES = "key_synced_outgoing_hashes";
     private static final String KEY_RECEIVED_INCOMING_HASHES = "key_received_incoming_hashes";
+    private static final String KEY_RECEIVED_INCOMING_SIGNATURES = "key_received_incoming_signatures";
 
     // Activity Log & Preferences
     private static final String KEY_SYNC_LOGS_JSON = "key_sync_logs_json";
@@ -221,6 +222,30 @@ public class SyncLedgerRepository {
         Set<String> set = new HashSet<>(prefs.getStringSet(KEY_RECEIVED_INCOMING_HASHES, Collections.emptySet()));
         set.add(sha256Hash);
         prefs.edit().putStringSet(KEY_RECEIVED_INCOMING_HASHES, set).apply();
+    }
+
+    public synchronized void recordIncomingPhotoReceived(String sha256Hash, String fileName, long fileSize, String sourceDevice) {
+        recordIncomingPhotoReceived(sha256Hash);
+        if (fileName != null && !fileName.isEmpty()) {
+            Set<String> sigs = new HashSet<>(prefs.getStringSet(KEY_RECEIVED_INCOMING_SIGNATURES, Collections.emptySet()));
+            sigs.add(fileName + "_" + fileSize);
+            sigs.add(fileName);
+            prefs.edit().putStringSet(KEY_RECEIVED_INCOMING_SIGNATURES, sigs).apply();
+        }
+    }
+
+    public synchronized boolean isPhotoCopiedFromOtherDevice(String fileName, long fileSize, String sha256Hash) {
+        if (sha256Hash != null && !sha256Hash.isEmpty()) {
+            Set<String> incoming = prefs.getStringSet(KEY_RECEIVED_INCOMING_HASHES, Collections.emptySet());
+            if (incoming.contains(sha256Hash)) return true;
+        }
+        if (fileName != null && !fileName.isEmpty()) {
+            Set<String> sigs = prefs.getStringSet(KEY_RECEIVED_INCOMING_SIGNATURES, Collections.emptySet());
+            if (sigs.contains(fileName + "_" + fileSize) || sigs.contains(fileName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public int getOutgoingSyncedCount() {

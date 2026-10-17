@@ -16,7 +16,8 @@ import {
   ShieldCheck, 
   SlidersHorizontal,
   FolderSync,
-  Compass
+  Compass,
+  Smartphone
 } from 'lucide-react';
 
 interface LocationOrganizerViewProps {
@@ -37,7 +38,7 @@ export const LocationOrganizerView: React.FC<LocationOrganizerViewProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [copiedSuccessMessage, setCopiedSuccessMessage] = useState<string | null>(null);
   const [selectedFolderFilter, setSelectedFolderFilter] = useState<string>('ALL');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'COPIED' | 'PENDING'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'COPIED_FROM_DEVICE' | 'LOCAL'>('ALL');
 
   // Handle uploading real photos from disk
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -153,16 +154,15 @@ export const LocationOrganizerView: React.FC<LocationOrganizerViewProps> = ({
     // Notify parent for Gallery integration
     onPhotosOrganized(targets);
 
-    // Apply green highlight to the copied ones immediately
+    // Mark as organized locally on this device
     setPhotoList((prev) =>
       prev.map((p) => {
         if (targets.some((t) => t.id === p.id)) {
           return {
             ...p,
-            isCopied: true,
+            isOrganizedLocally: true,
             selected: false,
-            copiedAt: Date.now(),
-            statusMessage: `✓ Copied to Pictures/${p.destinationFolder}/`,
+            statusMessage: `✓ Organized to Pictures/${p.destinationFolder}/`,
           };
         }
         return p;
@@ -178,6 +178,37 @@ export const LocationOrganizerView: React.FC<LocationOrganizerViewProps> = ({
             .join('\n')
       );
     }, 600);
+  };
+
+  // Simulate receiving photo copied from another device via Wi-Fi Sync
+  const simulateReceiveFromOtherDevice = () => {
+    const newSyncedPhoto: OrganizedPhoto = {
+      id: `remote_sync_${Date.now()}`,
+      fileName: `IMG_SYNC_${Date.now().toString().slice(-6)}.jpg`,
+      fileSize: 3620000,
+      captureDateFormatted: '16-10-2026',
+      isoDate: '2026-10-16',
+      timestamp: Date.now(),
+      rootFolder: 'Dussehra_2026',
+      deviParentFolder: 'Sri_Mahishasura_Mardini_Devi',
+      locationSubfolder: 'Home',
+      destinationFolder: 'Sri_Mahishasura_Mardini_Devi/Home',
+      sourceType: 'camera',
+      isCameraAuthentic: true,
+      latitude: 17.782890,
+      longitude: 83.361830,
+      distanceMeters: 0.9,
+      locationLabel: 'Home',
+      statusMessage: '✓ Copied from paired device (Pixel 8 Pro via Wi-Fi Sync)',
+      previewUrl: 'https://images.unsplash.com/photo-1545232979-8bf68ee9b1af?auto=format&fit=crop&w=600&q=80',
+      selected: false,
+      isCopiedFromOtherDevice: true,
+      sourceDeviceName: 'Pixel 8 Pro (Paired Device)',
+      copiedAt: Date.now(),
+    };
+    setPhotoList((prev) => [newSyncedPhoto, ...prev]);
+    onPhotosOrganized([newSyncedPhoto]);
+    setCopiedSuccessMessage('Received 1 photo synced from paired device (Pixel 8 Pro) with "COPIED FROM ANOTHER DEVICE" highlight!');
   };
 
   // Export organized structure as ZIP
@@ -222,8 +253,8 @@ export const LocationOrganizerView: React.FC<LocationOrganizerViewProps> = ({
     setCopiedSuccessMessage(null);
   };
 
-  const copiedCount = photoList.filter((p) => p.isCopied).length;
-  const pendingCount = photoList.filter((p) => !p.isCopied).length;
+  const copiedFromDeviceCount = photoList.filter((p) => p.isCopiedFromOtherDevice).length;
+  const localPhotosCount = photoList.filter((p) => !p.isCopiedFromOtherDevice).length;
 
   const filteredPhotos = photoList.filter((p) => {
     const matchesFolder =
@@ -231,9 +262,9 @@ export const LocationOrganizerView: React.FC<LocationOrganizerViewProps> = ({
     const matchesStatus =
       statusFilter === 'ALL'
         ? true
-        : statusFilter === 'COPIED'
-        ? p.isCopied
-        : !p.isCopied;
+        : statusFilter === 'COPIED_FROM_DEVICE'
+        ? p.isCopiedFromOtherDevice
+        : !p.isCopiedFromOtherDevice;
     return matchesFolder && matchesStatus;
   });
 
@@ -364,28 +395,28 @@ export const LocationOrganizerView: React.FC<LocationOrganizerViewProps> = ({
         </div>
       )}
 
-      {/* Copied Photos Highlight Callout */}
-      {copiedCount > 0 && (
+      {/* Copied from Another Device Highlight Callout */}
+      {copiedFromDeviceCount > 0 && (
         <div className="bg-emerald-50/90 border border-emerald-300 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-emerald-950 shadow-xs">
           <div className="flex items-center space-x-2.5">
             <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-              <CheckCircle2 className="w-3.5 h-3.5" />
+              <Smartphone className="w-3.5 h-3.5" />
             </span>
             <div>
               <p className="font-bold text-emerald-900">
-                Copied Photos Highlight Active ({copiedCount} Photo{copiedCount > 1 ? 's' : ''})
+                Copied from Another Device ({copiedFromDeviceCount} Photo{copiedFromDeviceCount > 1 ? 's' : ''})
               </p>
               <p className="text-[11px] text-emerald-800">
-                Copied photos are highlighted in emerald green with &quot;ALREADY COPIED&quot; badges and checkmarks. They are safely organized and locked against duplicate re-processing.
+                Only photos transferred and copied from another paired device display the emerald &quot;COPIED FROM ANOTHER DEVICE&quot; mark and border. Local camera photos organized on this device remain unbadged.
               </p>
             </div>
           </div>
           <div className="flex items-center space-x-2 shrink-0">
             <button
-              onClick={() => setStatusFilter(statusFilter === 'COPIED' ? 'ALL' : 'COPIED')}
+              onClick={() => setStatusFilter(statusFilter === 'COPIED_FROM_DEVICE' ? 'ALL' : 'COPIED_FROM_DEVICE')}
               className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold text-xs shadow-xs transition-colors cursor-pointer"
             >
-              {statusFilter === 'COPIED' ? 'View All Photos' : 'Filter Highlighted Only'}
+              {statusFilter === 'COPIED_FROM_DEVICE' ? 'View All Photos' : 'Filter Copied from Other Device'}
             </button>
           </div>
         </div>
@@ -408,25 +439,25 @@ export const LocationOrganizerView: React.FC<LocationOrganizerViewProps> = ({
               All Photos ({photoList.length})
             </button>
             <button
-              onClick={() => setStatusFilter('COPIED')}
+              onClick={() => setStatusFilter('COPIED_FROM_DEVICE')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 ${
-                statusFilter === 'COPIED'
+                statusFilter === 'COPIED_FROM_DEVICE'
                   ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-400/40'
                   : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300'
               }`}
             >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Highlighted / Copied ({copiedCount})</span>
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>Copied from Another Device ({copiedFromDeviceCount})</span>
             </button>
             <button
-              onClick={() => setStatusFilter('PENDING')}
+              onClick={() => setStatusFilter('LOCAL')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1.5 ${
-                statusFilter === 'PENDING'
-                  ? 'bg-amber-600 text-white shadow-xs'
-                  : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-300'
+                statusFilter === 'LOCAL'
+                  ? 'bg-stone-800 text-white shadow-xs'
+                  : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
               }`}
             >
-              <span>Pending ({pendingCount})</span>
+              <span>Local Photos ({localPhotosCount})</span>
             </button>
           </div>
 
@@ -478,48 +509,48 @@ export const LocationOrganizerView: React.FC<LocationOrganizerViewProps> = ({
       {/* Photo Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredPhotos.map((photo) => {
-          const isCopied = photo.isCopied;
+          const isCopiedFromOtherDevice = !!photo.isCopiedFromOtherDevice;
           return (
             <div
               key={photo.id}
               onClick={() => {
-                if (!isCopied) toggleSelectPhoto(photo.id);
+                if (!isCopiedFromOtherDevice) toggleSelectPhoto(photo.id);
               }}
               className={`rounded-2xl border p-4 shadow-xs transition-all relative flex space-x-3.5 ${
-                isCopied
+                isCopiedFromOtherDevice
                   ? 'bg-emerald-50/90 border-2 border-emerald-500 shadow-md shadow-emerald-100/60 ring-2 ring-emerald-400/30'
                   : photo.selected
                   ? 'bg-white border-amber-400 ring-2 ring-amber-400/30 cursor-pointer hover:shadow-md'
-                  : 'bg-white border-stone-200 opacity-80 cursor-pointer hover:opacity-100'
+                  : 'bg-white border-stone-200 opacity-90 cursor-pointer hover:opacity-100'
               }`}
             >
-              {/* Highlight Badge on top-right for copied photos */}
-              {isCopied && (
+              {/* Highlight Badge on top-right ONLY for photos copied from another device */}
+              {isCopiedFromOtherDevice && (
                 <div className="absolute -top-2.5 right-3 bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm flex items-center space-x-1 tracking-wide uppercase">
-                  <CheckCircle2 className="w-2.5 h-2.5" />
-                  <span>ALREADY COPIED</span>
+                  <Smartphone className="w-2.5 h-2.5" />
+                  <span>COPIED FROM ANOTHER DEVICE</span>
                 </div>
               )}
 
               <input
                 type="checkbox"
-                checked={isCopied ? false : photo.selected}
-                disabled={isCopied}
+                checked={isCopiedFromOtherDevice ? false : photo.selected}
+                disabled={isCopiedFromOtherDevice}
                 onChange={() => {}} // Controlled by card click
                 className="mt-1 w-4 h-4 text-[#D94F00] rounded focus:ring-amber-500 cursor-pointer disabled:opacity-30"
               />
 
               <div className={`w-20 h-20 rounded-xl overflow-hidden bg-stone-100 shrink-0 border relative ${
-                isCopied ? 'border-2 border-emerald-500 ring-2 ring-emerald-400/30' : 'border border-stone-200'
+                isCopiedFromOtherDevice ? 'border-2 border-emerald-500 ring-2 ring-emerald-400/30' : 'border border-stone-200'
               }`}>
                 <img
                   src={photo.previewUrl}
                   alt={photo.fileName}
                   className="w-full h-full object-cover"
                 />
-                {isCopied && (
-                  <div className="absolute top-1 left-1 bg-emerald-600 text-white p-0.5 rounded-full shadow-sm">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
+                {isCopiedFromOtherDevice && (
+                  <div className="absolute top-1 left-1 bg-emerald-600 text-white p-0.5 rounded-full shadow-sm" title="Transferred from paired device">
+                    <Smartphone className="w-3.5 h-3.5" />
                   </div>
                 )}
               </div>
@@ -529,15 +560,27 @@ export const LocationOrganizerView: React.FC<LocationOrganizerViewProps> = ({
                   <h4 className="text-xs font-bold text-stone-900 truncate font-mono" title={photo.fileName}>
                     {photo.fileName}
                   </h4>
-                  {isCopied && (
-                    <span className="text-[9px] text-emerald-800 font-bold bg-emerald-200/80 px-1.5 py-0.5 rounded ml-1 shrink-0">
-                      SAVED
+                  {isCopiedFromOtherDevice ? (
+                    <span className="text-[9px] text-emerald-800 font-bold bg-emerald-200/80 px-1.5 py-0.5 rounded ml-1 shrink-0 flex items-center space-x-1">
+                      <span>✓ COPIED</span>
                     </span>
-                  )}
+                  ) : photo.isOrganizedLocally ? (
+                    <span className="text-[9px] text-amber-800 font-semibold bg-amber-100 px-1.5 py-0.5 rounded ml-1 shrink-0">
+                      ORGANIZED
+                    </span>
+                  ) : null}
                 </div>
                 <p className="text-[11px] text-stone-500">
                   Captured: {photo.captureDateFormatted}
                 </p>
+
+                {photo.sourceDeviceName && (
+                  <p className={`text-[10px] font-medium flex items-center space-x-1 ${
+                    isCopiedFromOtherDevice ? 'text-emerald-700 font-bold' : 'text-stone-500'
+                  }`}>
+                    <span>Source: {photo.sourceDeviceName}</span>
+                  </p>
+                )}
 
                 <div className="flex items-center space-x-1 text-xs font-semibold text-red-900">
                   <FolderCheck className="w-3.5 h-3.5 text-[#D94F00] shrink-0" />
@@ -547,11 +590,11 @@ export const LocationOrganizerView: React.FC<LocationOrganizerViewProps> = ({
                 </div>
 
                 <div className={`text-[10px] px-2 py-0.5 rounded border font-medium truncate flex items-center space-x-1 ${
-                  isCopied
+                  isCopiedFromOtherDevice
                     ? 'text-emerald-950 bg-emerald-100 border-emerald-300 font-bold'
-                    : 'text-emerald-800 bg-emerald-50 border-emerald-200'
+                    : 'text-stone-700 bg-stone-50 border-stone-200'
                 }`}>
-                  {isCopied && <CheckCircle2 className="w-3 h-3 text-emerald-700 shrink-0" />}
+                  {isCopiedFromOtherDevice && <CheckCircle2 className="w-3 h-3 text-emerald-700 shrink-0" />}
                   <span className="truncate">{photo.statusMessage}</span>
                 </div>
 

@@ -114,7 +114,7 @@ public class PhotoDestinationSaver {
 
         if (isAlreadySaved(resolver, displayName, relativeFolderPath, targetSubDir)) {
             Log.d(TAG, "Photo already exists at destination, skipping duplicate insert: " + displayName);
-            syncLedgerRepository.recordIncomingPhotoReceived(header.sha256);
+            syncLedgerRepository.recordIncomingPhotoReceived(header.sha256, displayName, header.fileSize, syncLedgerRepository.getPairedDeviceName());
             historyRepository.recordProcessedPhotoForLocation(0, displayName, header.fileSize);
             return true;
         }
@@ -194,7 +194,7 @@ public class PhotoDestinationSaver {
             if (saved) {
                 // Record in Sync Ledger and Local History:
                 // Prevents endless retransmission loops and duplicate files
-                syncLedgerRepository.recordIncomingPhotoReceived(header.sha256);
+                syncLedgerRepository.recordIncomingPhotoReceived(header.sha256, displayName, header.fileSize, syncLedgerRepository.getPairedDeviceName());
                 historyRepository.recordProcessedPhotoForLocation(0, displayName, header.fileSize);
                 syncLedgerRepository.addLogEntry(displayName, "RECEIVED", "SUCCESS", "Organized into " + subfolder);
                 Log.d(TAG, "Successfully organized received photo: " + displayName + " -> " + subfolder);

@@ -12,6 +12,7 @@ import com.example.dussehraphotoorganizer.location.LocationConfigManager;
 import com.example.dussehraphotoorganizer.model.FestivalDateItem;
 import com.example.dussehraphotoorganizer.model.PhotoItem;
 import com.example.dussehraphotoorganizer.schedule.AlankaramSchedule;
+import com.example.dussehraphotoorganizer.sync.data.SyncLedgerRepository;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +35,7 @@ public class LocationPhotoScanner {
     private final PhotoMetadataReader metadataReader;
     private final LocalHistoryRepository historyRepository;
     private final AlankaramSchedule schedule;
+    private final SyncLedgerRepository syncLedgerRepository;
 
     public interface ScanProgressListener {
         void onProgress(int scannedCount, int matchingCount);
@@ -45,6 +47,7 @@ public class LocationPhotoScanner {
         this.metadataReader = new PhotoMetadataReader(context);
         this.historyRepository = new LocalHistoryRepository(context);
         this.schedule = new AlankaramSchedule(context);
+        this.syncLedgerRepository = new SyncLedgerRepository(context);
     }
 
     public LocationScanResult scanCameraPhotos(ScanProgressListener listener) {
@@ -159,9 +162,13 @@ public class LocationPhotoScanner {
                     eligible.setRootDirectory(AlankaramSchedule.MAIN_FOLDER_NAME);
                     eligible.setFileSize(size);
                     eligible.setAlreadyCopied(alreadyProcessed);
-                    eligible.setSelected(!alreadyProcessed); // Unselected if already copied to prevent redundant copying
-                    if (alreadyProcessed) {
-                        eligible.setStatusMessage("✓ Copied to Pictures/" + destinationSubPath);
+                    boolean copiedFromOther = syncLedgerRepository.isPhotoCopiedFromOtherDevice(displayName, size, null);
+                    eligible.setCopiedFromOtherDevice(copiedFromOther);
+                    eligible.setSelected(!alreadyProcessed && !copiedFromOther); // Unselected if already processed or copied to prevent redundant copying
+                    if (copiedFromOther) {
+                        eligible.setStatusMessage("✓ Copied from paired device to Pictures/" + destinationSubPath);
+                    } else if (alreadyProcessed) {
+                        eligible.setStatusMessage("✓ Organized to Pictures/" + destinationSubPath);
                     } else {
                         eligible.setStatusMessage(eval.statusSummary);
                     }

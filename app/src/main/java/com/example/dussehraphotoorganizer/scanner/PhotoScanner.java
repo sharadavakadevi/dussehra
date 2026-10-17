@@ -12,6 +12,7 @@ import com.example.dussehraphotoorganizer.location.LocationConfigManager;
 import com.example.dussehraphotoorganizer.model.FestivalDateItem;
 import com.example.dussehraphotoorganizer.model.PhotoItem;
 import com.example.dussehraphotoorganizer.schedule.AlankaramSchedule;
+import com.example.dussehraphotoorganizer.sync.data.SyncLedgerRepository;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +29,7 @@ public class PhotoScanner {
     private final LocationConfigManager locationConfigManager;
     private final PhotoMetadataReader metadataReader;
     private final LocalHistoryRepository historyRepository;
+    private final SyncLedgerRepository syncLedgerRepository;
 
     public interface ScanProgressListener {
         void onProgress(int scannedCount, int matchingCount);
@@ -39,6 +41,7 @@ public class PhotoScanner {
         this.locationConfigManager = new LocationConfigManager(context);
         this.metadataReader = new PhotoMetadataReader(context);
         this.historyRepository = new LocalHistoryRepository(context);
+        this.syncLedgerRepository = new SyncLedgerRepository(context);
     }
 
     public ScanResult scanCameraPhotos(ScanProgressListener listener) {
@@ -152,9 +155,13 @@ public class PhotoScanner {
                     eligible.setRootDirectory(AlankaramSchedule.MAIN_FOLDER_NAME);
                     eligible.setFileSize(size);
                     eligible.setAlreadyCopied(alreadyProcessed);
-                    eligible.setSelected(!alreadyProcessed);
-                    if (alreadyProcessed) {
-                        eligible.setStatusMessage("✓ Copied to Pictures/" + destinationSubPath);
+                    boolean copiedFromOther = syncLedgerRepository.isPhotoCopiedFromOtherDevice(displayName, size, null);
+                    eligible.setCopiedFromOtherDevice(copiedFromOther);
+                    eligible.setSelected(!alreadyProcessed && !copiedFromOther);
+                    if (copiedFromOther) {
+                        eligible.setStatusMessage("✓ Copied from paired device to Pictures/" + destinationSubPath);
+                    } else if (alreadyProcessed) {
+                        eligible.setStatusMessage("✓ Organized to Pictures/" + destinationSubPath);
                     } else {
                         eligible.setStatusMessage(matchedFestival.getTeluguName() + " (" + eval.statusSummary + ")");
                     }

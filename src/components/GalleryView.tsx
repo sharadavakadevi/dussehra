@@ -95,39 +95,58 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
-          {filteredPhotos.map((photo) => (
-            <div
-              key={photo.id}
-              onClick={() => setPreviewPhoto(photo)}
-              className="bg-white rounded-xl border-2 border-emerald-500/80 overflow-hidden shadow-xs hover:shadow-md cursor-pointer group transition-all relative ring-2 ring-emerald-400/20"
-            >
-              {/* Highlight badge for copied photo in gallery */}
-              <div className="absolute top-2 left-2 z-10 bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow flex items-center space-x-1 uppercase tracking-wider">
-                <span>✓ COPIED</span>
-              </div>
+          {filteredPhotos.map((photo) => {
+            const isCopiedFromOtherDevice = !!photo.isCopiedFromOtherDevice;
+            return (
+              <div
+                key={photo.id}
+                onClick={() => setPreviewPhoto(photo)}
+                className={`bg-white rounded-xl overflow-hidden shadow-xs hover:shadow-md cursor-pointer group transition-all relative ${
+                  isCopiedFromOtherDevice
+                    ? 'border-2 border-emerald-500 shadow-md shadow-emerald-100/60 ring-2 ring-emerald-400/30'
+                    : 'border border-stone-200'
+                }`}
+              >
+                {/* Highlight badge ONLY for photos copied from another device */}
+                {isCopiedFromOtherDevice && (
+                  <div className="absolute top-2 left-2 z-10 bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow flex items-center space-x-1 uppercase tracking-wider">
+                    <span>✓ COPIED FROM OTHER DEVICE</span>
+                  </div>
+                )}
 
-              <div className="aspect-square bg-stone-100 relative overflow-hidden">
-                <img
-                  src={photo.previewUrl}
-                  alt={photo.fileName}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2 flex flex-col justify-end text-white text-[10px]">
-                  <span className="font-mono truncate">{photo.fileName}</span>
-                  <span className="text-emerald-300 font-semibold">{photo.destinationFolder}</span>
+                <div className="aspect-square bg-stone-100 relative overflow-hidden">
+                  <img
+                    src={photo.previewUrl}
+                    alt={photo.fileName}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2 flex flex-col justify-end text-white text-[10px]">
+                    <span className="font-mono truncate">{photo.fileName}</span>
+                    <span className={isCopiedFromOtherDevice ? 'text-emerald-300 font-semibold' : 'text-stone-300'}>
+                      {photo.destinationFolder}
+                    </span>
+                  </div>
+                </div>
+                <div className={`p-2 text-[11px] ${isCopiedFromOtherDevice ? 'bg-emerald-50/50' : 'bg-stone-50/50'}`}>
+                  <p className="font-mono text-stone-900 truncate font-semibold" title={photo.fileName}>
+                    {photo.fileName}
+                  </p>
+                  <div className="flex items-center justify-between text-stone-600 text-[10px] mt-0.5">
+                    <span className={`truncate font-medium ${isCopiedFromOtherDevice ? 'text-emerald-800' : 'text-stone-600'}`}>
+                      {isCopiedFromOtherDevice ? '📱 ' : '📁 '}
+                      {photo.destinationFolder}
+                    </span>
+                    <span>{photo.captureDateFormatted}</span>
+                  </div>
+                  {isCopiedFromOtherDevice && photo.sourceDeviceName && (
+                    <p className="text-[9px] text-emerald-700 font-bold truncate mt-0.5">
+                      From: {photo.sourceDeviceName}
+                    </p>
+                  )}
                 </div>
               </div>
-              <div className="p-2 text-[11px] bg-emerald-50/40">
-                <p className="font-mono text-stone-900 truncate font-semibold" title={photo.fileName}>
-                  {photo.fileName}
-                </p>
-                <div className="flex items-center justify-between text-stone-600 text-[10px] mt-0.5">
-                  <span className="truncate text-emerald-800 font-medium">✓ {photo.destinationFolder}</span>
-                  <span>{photo.captureDateFormatted}</span>
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -141,13 +160,24 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                   <h3 className="font-mono text-sm font-bold truncate">
                     {previewPhoto.fileName}
                   </h3>
-                  <span className="bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
-                    ✓ COPIED
-                  </span>
+                  {previewPhoto.isCopiedFromOtherDevice ? (
+                    <span className="bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 flex items-center space-x-1">
+                      <span>✓ COPIED FROM OTHER DEVICE</span>
+                    </span>
+                  ) : (
+                    <span className="bg-stone-700 text-stone-300 text-[9px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
+                      Local Device Photo
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-amber-400 mt-0.5">
                   Location: Pictures/{previewPhoto.rootFolder}/{previewPhoto.destinationFolder}/
                 </p>
+                {previewPhoto.sourceDeviceName && (
+                  <p className="text-[11px] text-stone-400 mt-0.5">
+                    Device: {previewPhoto.sourceDeviceName}
+                  </p>
+                )}
               </div>
               <button
                 onClick={() => setPreviewPhoto(null)}
